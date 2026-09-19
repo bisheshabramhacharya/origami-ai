@@ -1,0 +1,20 @@
+{
+  "name": "origami-ai",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @origami/web --filter @origami/api dev",
+    "dev:web": "pnpm --filter @origami/web dev",
+    "dev:api": "pnpm --filter @origami/api dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @origami/core test",
+    "test:watch": "pnpm --filter @origami/core test:watch",
+    "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
