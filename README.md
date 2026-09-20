@@ -1,3 +1,5 @@
+![banner](assets/banner.webp)
+
 # Origami AI
 
 Describe something you want to make out of paper. Origami AI finds real, validated ways to build it,
