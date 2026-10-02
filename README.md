@@ -94,3 +94,9 @@ Original generation is blocked on real geometric validation; see ADR-0001.
 
 `CONTEXT.md` is the glossary. Use its words — `Model`, `Step`, `Build Brief`, `Option`, `Grounding` —
 in code, issues and tests.
+
+If Origami AI taught you a fold, a ⭐ helps other people find it.
+
+## License
+
+[MIT](LICENSE)
