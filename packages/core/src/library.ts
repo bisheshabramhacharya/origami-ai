@@ -1,7 +1,9 @@
 import { BIRD_MODELS } from './data/birds'
 import { ENGINEERED_MODELS } from './data/engineered'
 import { FOLDED_MODELS } from './data/folded'
+import { PLANE_MODELS } from './data/planes'
 import { modelOperations } from './grounding'
+import { isRetrievable } from './retrieval'
 import { ModelSchema, TECHNIQUE_LABELS, type LibraryIssue, type Model, type Technique } from './types'
 
 const MEDIUM_TOOLS = new Set(['scissors', 'craft-knife'])
@@ -104,11 +106,22 @@ export function assertLibraryHealthy(entries: unknown[]): Model[] {
   return models
 }
 
-export const SEED_LIBRARY: Model[] = assertLibraryHealthy([
+/**
+ * Every seed Model, health-checked, including drafts that a person has not folded yet
+ * (needs-review). For audits and tests only: never show these to a learner (ADR-0001).
+ */
+export const SEED_MODELS: Model[] = assertLibraryHealthy([
   ...BIRD_MODELS,
   ...FOLDED_MODELS,
   ...ENGINEERED_MODELS,
+  ...PLANE_MODELS,
 ])
+
+/**
+ * The Library the app and the API show, list, search and open: only validated, hand-foldable
+ * Models (ADR-0001). A needs-review draft is in SEED_MODELS and not here.
+ */
+export const SEED_LIBRARY: Model[] = SEED_MODELS.filter(isRetrievable)
 
 export function getModel(id: string, library: Model[] = SEED_LIBRARY): Model | undefined {
   return library.find((model) => model.id === id)
