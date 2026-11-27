@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { creases, squareBase } from './fixtures'
 import {
-  type FoldSequenceInput,
   type FoldState,
   checkKawasaki,
   checkLayers,
@@ -13,35 +13,6 @@ import {
   outline,
   toFold,
 } from '../src'
-
-const creases: FoldSequenceInput['steps'] = [
-  { step: '2', actions: [{ kind: 'valley', name: 'd1', line: { bring: 'B', to: 'D' } }, { kind: 'unfold', creases: ['d1'] }] },
-  { step: '3', actions: [{ kind: 'valley', name: 'd2', line: { bring: 'A', to: 'C' } }, { kind: 'unfold', creases: ['d2'] }] },
-  {
-    step: '4',
-    actions: [
-      { kind: 'turn-over' },
-      { kind: 'valley', name: 'b1', line: { bring: 'A', to: 'D' } },
-      { kind: 'unfold', creases: ['b1'] },
-      { kind: 'valley', name: 'b2', line: { bring: 'A', to: 'B' } },
-      { kind: 'unfold', creases: ['b2'] },
-    ],
-  },
-]
-
-const squareBase: FoldSequenceInput = {
-  paper: { widthMm: 150, heightMm: 150 },
-  steps: [
-    ...creases,
-    {
-      step: '5',
-      actions: [
-        { kind: 'collapse', set: [{ crease: 'd2', assignment: 'V' }, { crease: 'b1', assignment: 'M' }, { crease: 'b2', assignment: 'M' }] },
-        { kind: 'rotate', degrees: -135 },
-      ],
-    },
-  ],
-}
 
 const where = (state: FoldState, name: string) => {
   const p = state.points[name]!

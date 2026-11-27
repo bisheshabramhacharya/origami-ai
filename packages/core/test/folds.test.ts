@@ -46,6 +46,15 @@ describe('fold sequences on Models', () => {
     expect(checkState(step5)).toEqual([])
   })
 
+  it('folds the kites and the top point on the front flap (Steps 6 to 8), then opens them again', () => {
+    for (const id of ['crane-6', 'crane-7', 'crane-8']) expect(checkState(foldedStateForStep(crane, id)!), id).toEqual([])
+    const step8 = foldedStateForStep(crane, 'crane-8')!
+    expect(area(outline(step8))).toBeCloseTo(75 * 75, 6)
+    const flat = step8.edges.filter((e) => e.creases.some((c) => ['k1', 'k2', 't1'].includes(c)))
+    expect(flat.length).toBeGreaterThan(0)
+    expect(flat.every((e) => e.assignment === 'F')).toBe(true)
+  })
+
   it('fails the audit for a Model whose fold sequence has an impossible fold', () => {
     const broken: Model = {
       ...crane,
