@@ -76,7 +76,11 @@ function Paper({ mesh }: { mesh: DisplayMesh }) {
   useEffect(
     () => () => {
       geometry.dispose()
-      for (const l of lines) l.geometry.dispose()
+      for (const l of lines) {
+        l.geometry.dispose()
+        const materials = Array.isArray(l.material) ? l.material : [l.material]
+        for (const m of materials) m.dispose()
+      }
     },
     [geometry, lines],
   )

@@ -38,6 +38,7 @@ import {
   addVertex,
   cloneState,
   edgeKey,
+  facesAtFlatPoint,
   faceMap,
   findEdge,
   flatPolygon,
@@ -115,8 +116,9 @@ function resolveFoldLine(state: FoldState, line: SimpleFold['line'], moving: Sim
     const edge = lineThrough(a, b)
     const candidates: Line2[] = []
     if (linesParallel(edge, target.line)) {
-      const foot = reflectAcross(target.line, a)
-      candidates.push({ origin: lerp2(a, foot, 0.5), dir: edge.dir })
+      // The crease is halfway between the edge and the target line: a quarter of the way to a's mirror image.
+      const mirror = reflectAcross(target.line, a)
+      candidates.push({ origin: lerp2(a, mirror, 0.25), dir: edge.dir })
     } else {
       const x = intersectLines(edge, target.line)!
       const u = edge.dir
@@ -298,10 +300,14 @@ function planFold(
   if (layers === 'all') {
     component = new Set(all.filter((f) => faceTouches(state, line, f, side)))
   } else if (layers === 'top') {
-    const at = resolved.seed?.folded ?? null
+    const seed = resolved.seed
     let candidates: number[]
-    if (at) candidates = all.filter((f) => faceTouches(state, line, f, side) && pointInConvex(foldedPolygon(state, f), at))
-    else {
+    if (seed) {
+      // The layer that moves is the top one of the layers that carry the point that is brought,
+      // not the top layer at that place (another layer may lie over the point).
+      const carriers = new Set(facesAtFlatPoint(state, seed.flat))
+      candidates = all.filter((f) => carriers.has(f) && faceTouches(state, line, f, side))
+    } else {
       // No point given: the top layer anywhere on the moving side.
       candidates = all.filter((f) => faceTouches(state, line, f, side))
     }
@@ -504,8 +510,13 @@ function unfold(state: FoldState, last: number | undefined, creases: string[] | 
     names = state.folds.slice(state.folds.length - last).map((r) => r.name)
   } else {
     names = creases!
-    for (const n of names) if (creaseEdges(state, n).length === 0) fail('references', `Crease "${n}" does not exist.`, n)
+    for (const n of names) {
+      if (creaseEdges(state, n).length === 0) fail('references', `Crease "${n}" does not exist.`, n)
+      if (!state.folds.some((r) => r.name === n)) fail('references', `Crease "${n}" is not folded now, so it cannot be unfolded.`, n)
+    }
   }
+  // An edge can carry an older crease and a later fold. Open it only when no fold that stays carries it.
+  const staying = new Set(state.folds.map((r) => r.name).filter((n) => !names.includes(n)))
   const records = state.folds.filter((r) => names.includes(r.name))
   const moved = records.flatMap((r) => r.moved)
   const all = state.faces.map((_, f) => f)
@@ -519,6 +530,7 @@ function unfold(state: FoldState, last: number | undefined, creases: string[] | 
   }
   for (const edge of state.edges) {
     if (!edge.creases.some((c) => names.includes(c))) continue
+    if (edge.creases.some((c) => staying.has(c))) continue
     if (edge.assignment === 'B') continue
     edge.assignment = 'F'
     edge.foldAngle = 0
