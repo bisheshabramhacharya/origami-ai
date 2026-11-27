@@ -95,10 +95,10 @@ ORIGAMI_AUTHORING_PROVIDER=anthropic ANTHROPIC_API_KEY=... \
   pnpm --filter @origami/api author -- --reference steps.txt --out drafts/my-model.json
 ```
 
-`steps.txt` is your reference, for example the Model's Step text. The script asks for a draft, runs
+`steps.txt` is your reference, for example the Model's Step text. Both paths are relative to the folder you run the command in. The script asks for a draft, runs
 the engine, sends the exact error of the first failed fold back, and tries again (5 tries at most,
-`--max-tries N` to change it). The draft file is marked `needs-review`. The script never writes into
-`packages/core/src` and never marks a Model `validated`: fold the draft by hand first. Without
+`--max-tries N` to change it). The draft file is marked `needs-review`. It never replaces a file unless you pass `--force`. The
+script never writes into `packages/core/src` (a symlink to it counts too) and never marks a Model `validated`: fold the draft by hand first. Without
 `ORIGAMI_AUTHORING_PROVIDER=anthropic` the script calls no LLM. `ANTHROPIC_MODEL` picks the model,
 as for the tutor.
 

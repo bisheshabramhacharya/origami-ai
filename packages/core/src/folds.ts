@@ -5,6 +5,7 @@ import {
   type FoldedStep,
   type FoldState,
   type SequenceResult,
+  MOTION_SAMPLES,
   actionMotion,
   describeIssue,
   displayMesh,
@@ -82,12 +83,15 @@ export function stepPlayback(model: Model, stepId: string): StepPlayback | null 
   let playback: StepPlayback | null = null
   if (before && step) {
     const motions: ActionMotion[] = []
+    const actions = model.foldSequence?.steps.find((s) => s.step === stepId)?.actions ?? []
     let from = before
     step.actionStates.forEach((state, i) => {
-      motions.push(actionMotion(from, state, step.kinds[i]!))
+      const action = actions[i]
+      const turnDegrees = action?.kind === 'rotate' ? action.degrees : undefined
+      motions.push(actionMotion(from, state, step.kinds[i]!, { turnDegrees }))
       from = state
     })
-    const boxes = [before, step.state, ...motions.flatMap((m) => [m.stateAt(0.25), m.stateAt(0.5), m.stateAt(0.75)])].map(
+    const boxes = [before, step.state, ...motions.flatMap((m) => MOTION_SAMPLES.map((t) => m.stateAt(t)))].map(
       (state) => displayMesh(state).box,
     )
     const frame = {

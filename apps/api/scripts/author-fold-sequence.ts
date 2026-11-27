@@ -7,8 +7,8 @@
  * The draft goes to the file you name, marked `needs-review`. This script never writes into the
  * seed Library and never marks anything `validated`: a person folds the draft first.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, relative, resolve, sep } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { basename, dirname, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { type AuthoringPrompt, type AuthoringProvider, type AuthoringResult, authorFoldSequence } from '@origami/core'
 import { callAnthropic, llmSettings } from '../src/llm'
@@ -17,9 +17,32 @@ const here = dirname(fileURLToPath(import.meta.url))
 /** The seed Library. Drafts never go in here. */
 export const SEED_LIBRARY_DIR = resolve(here, '../../../packages/core/src')
 
-export function isInside(dir: string, path: string): boolean {
-  const rel = relative(dir, resolve(path))
+/**
+ * The real path of `path`, following symlinks. The file need not exist yet: the nearest folder that
+ * does exist is resolved, and the rest of the path is added back.
+ */
+export function realPathOf(path: string): string {
+  let head = resolve(path)
+  const tail: string[] = []
+  while (!existsSync(head)) {
+    const parent = dirname(head)
+    if (parent === head) break
+    tail.unshift(basename(head))
+    head = parent
+  }
+  return resolve(realpathSync(head), ...tail)
+}
+
+/** True when `path` is `dir` or inside it, after symlinks, and ignoring case where the disk does (macOS, Windows). */
+export function isInside(dir: string, path: string, caseInsensitive = process.platform === 'darwin' || process.platform === 'win32'): boolean {
+  const norm = (p: string) => (caseInsensitive ? p.toLowerCase() : p)
+  const rel = relative(norm(realPathOf(dir)), norm(realPathOf(path)))
   return rel === '' || (!rel.startsWith('..') && !rel.startsWith(sep) && !/^[A-Za-z]:/.test(rel))
+}
+
+/** Paths on the command line are relative to the folder the author ran pnpm in, not to apps/api. */
+export function fromWhereRun(path: string, env: NodeJS.ProcessEnv = process.env): string {
+  return resolve(env.INIT_CWD ?? process.cwd(), path)
 }
 
 /** The real provider. Only used when ORIGAMI_AUTHORING_PROVIDER=anthropic and an API key are set. */
@@ -68,7 +91,10 @@ export async function authorToFile(options: {
       foldSequence: result.draft,
     }
     mkdirSync(dirname(out), { recursive: true })
-    writeFileSync(out, `${JSON.stringify(file, null, 2)}\n`)
+    // Check again: the loop can take minutes, and the folder may have changed meanwhile.
+    if (isInside(SEED_LIBRARY_DIR, out)) throw new Error(`Drafts never go into the seed Library (${SEED_LIBRARY_DIR}). Name a file outside it.`)
+    // Without --force, never replace a file, even one made while the loop ran.
+    writeFileSync(out, `${JSON.stringify(file, null, 2)}\n`, { flag: options.force ? 'w' : 'wx' })
   }
   return result
 }
@@ -94,11 +120,12 @@ async function main() {
     console.error('Usage: author -- --reference <file> --out <file> [--force] [--max-tries N]')
     process.exit(2)
   }
-  const reference = readFileSync(opts.reference, 'utf8')
+  const reference = readFileSync(fromWhereRun(opts.reference), 'utf8')
   const maxTries = typeof opts['max-tries'] === 'string' ? Number(opts['max-tries']) : undefined
-  const result = await authorToFile({ reference, out: opts.out, provider: providerFromEnv(), force: opts.force === true, maxTries })
+  const out = fromWhereRun(opts.out)
+  const result = await authorToFile({ reference, out, provider: providerFromEnv(), force: opts.force === true, maxTries })
   if (result.ok) {
-    console.log(`Draft written to ${resolve(opts.out)} after ${result.tries} tries. It needs review: fold it by hand before it goes in the Library.`)
+    console.log(`Draft written to ${out} after ${result.tries} tries. It needs review: fold it by hand before it goes in the Library.`)
   } else {
     console.error(`No draft after ${result.tries} tries. The last error:\n${result.lastError}`)
     process.exit(1)
