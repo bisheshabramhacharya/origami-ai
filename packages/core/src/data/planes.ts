@@ -118,6 +118,8 @@ const paperPlaneDart: ModelInput = {
   tags: ['beginner', 'quick', 'flies', 'no-tools', 'no-glue', 'one-sheet', 'letter'],
   provenance: seedProvenance('Traditional paper dart, public domain', 'Public domain'),
   foldSequence: DART_FOLD_SEQUENCE,
+  // From the engine's finished state (see test/plane.test.ts, where the wingspan and length are also worked by hand).
+  finishedSize: { fromSheetMm: 279.4, widthMm: 110.06, lengthMm: 289.42, heightMm: 57.57 },
   // Nobody has folded this Model end to end against these Steps yet, so it is not retrievable (ADR-0001).
   // A person folds it (ticket 14) and then sets it to validated.
   validation: {
