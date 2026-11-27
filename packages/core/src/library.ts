@@ -1,6 +1,7 @@
 import { BIRD_MODELS } from './data/birds'
 import { ENGINEERED_MODELS } from './data/engineered'
 import { FOLDED_MODELS } from './data/folded'
+import { PLANE_MODELS } from './data/planes'
 import { modelOperations } from './grounding'
 import { ModelSchema, TECHNIQUE_LABELS, type LibraryIssue, type Model, type Technique } from './types'
 
@@ -108,6 +109,7 @@ export const SEED_LIBRARY: Model[] = assertLibraryHealthy([
   ...BIRD_MODELS,
   ...FOLDED_MODELS,
   ...ENGINEERED_MODELS,
+  ...PLANE_MODELS,
 ])
 
 export function getModel(id: string, library: Model[] = SEED_LIBRARY): Model | undefined {
