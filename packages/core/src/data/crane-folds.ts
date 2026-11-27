@@ -8,6 +8,9 @@ const meet = (a: string, b: string) => ({ intersect: [{ crease: a }, { crease: b
 /** The centre line of the bird base, from its two points to its bottom. */
 const centreLine = { through: ['A', 'B'] as [string, string] }
 
+/** The fold angle of each wing hinge on the finished crane: 180 is folded flat, 90 stands straight out. */
+export const CRANE_WING_DEGREES = 90
+
 export const CRANE_FOLD_SEQUENCE: FoldSequenceInput = {
   paper: { widthMm: 150, heightMm: 150 },
   steps: [
@@ -159,12 +162,41 @@ export const CRANE_FOLD_SEQUENCE: FoldSequenceInput = {
         {
           kind: 'inside-reverse',
           name: 'h1',
-          note: 'The head: a quarter of the way down the neck. The wings open in the next action (ticket 06).',
+          note: 'The head: a quarter of the way down the neck.',
           line: { pivot: { along: ['D', 'DA'], fraction: 0.25 }, angleDeg: 0 },
           flap: 'D',
           moving: 'D',
         },
+        {
+          kind: 'valley',
+          name: 'w1',
+          note: 'Fold the front wing down on a level line through the centre of the sheet.',
+          line: { pivot: 'O', angleDeg: 0 },
+          moving: 'C',
+          layers: 'top',
+        },
+        { kind: 'turn-over' },
+        {
+          kind: 'valley',
+          name: 'w2',
+          note: 'Fold the back wing down to match.',
+          line: { pivot: 'O', angleDeg: 0 },
+          moving: 'A',
+          layers: 'top',
+        },
+        { kind: 'turn-over' },
+        {
+          kind: 'open',
+          creases: ['w1', 'w2'],
+          degrees: CRANE_WING_DEGREES,
+          note: 'Lift both wings so they stand straight out from the body.',
+        },
       ],
+    },
+    {
+      step: 'crane-14',
+      note: 'The engine keeps the body flat. You round it by hand: pull the wings apart gently and blow into the hole underneath.',
+      actions: [],
     },
   ],
 }

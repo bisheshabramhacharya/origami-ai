@@ -10,6 +10,7 @@ export {
   isFlat,
   isFlipped,
   faceLevels,
+  foldedPositionOf,
 } from './state'
 export type { Vec2, Vec3 } from './geometry'
 export { applyAction, type ActionResult } from './actions'

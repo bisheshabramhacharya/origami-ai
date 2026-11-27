@@ -232,7 +232,7 @@ const origamiCrane: ModelInput = {
       ordinal: 13,
       title: 'Head',
       instruction: 'Fold the tip of the neck down sharply to make the head, then open the wings out to the sides.',
-      operations: ['reverse-fold', 'valley-fold', 'open', 'shape'],
+      operations: ['reverse-fold', 'valley-fold', 'turn-over', 'open', 'shape'],
       diagram: diagram('Beak, then open the wings', poly(50, 18, 76, 50, 50, 82, 24, 50), valley(34, 26, 40, 34), arrow(38, 30, 44, 36), line(20, 40, 8, 40), line(80, 40, 92, 40)),
       checkpoints: ['The head is a sharp downward angle', 'Both wings sit level'],
       commonMistakes: ['Bending the neck instead of reversing it, which leaves a soft sagging head'],
@@ -255,6 +255,8 @@ const origamiCrane: ModelInput = {
   provenance: seedProvenance('Traditional orizuru, public domain', 'Public domain', 'Standard 14-step teaching sequence.'),
   validation: validated(FOLD_ONLY_CHECKS),
   foldSequence: CRANE_FOLD_SEQUENCE,
+  // From the fold engine's finished state (see folds.test.ts): wingspan 150 × (2 − √2), neck tip to tail tip 150 / 2.
+  finishedSize: { fromSheetMm: 150, widthMm: 87.87, lengthMm: 75, heightMm: 68.75 },
 }
 
 const flappingBird: ModelInput = {

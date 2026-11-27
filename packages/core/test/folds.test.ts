@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { checkState, outline } from '@origami/fold'
+import { type FoldSequenceInput, boundingBox, checkState, foldedPositionOf, isFlat, outline, runFoldSequence } from '@origami/fold'
+import { CRANE_FOLD_SEQUENCE, CRANE_WING_DEGREES } from '../src/data/crane-folds'
 import {
   SEED_LIBRARY,
   type Model,
   auditFoldSequence,
   auditLibrary,
+  finishedSizeFor,
+  finishedSizeLabel,
   foldModel,
   foldedStateBeforeStep,
   foldedStateForStep,
@@ -79,6 +82,75 @@ describe('fold sequences on Models', () => {
     // Neck and tail go up and out: the model is wider than the thin body again.
     expect(width('crane-12')).toBeGreaterThan(width('crane-11'))
     for (const id of ['crane-12', 'crane-13']) expect(crane.steps.find((s) => s.id === id)!.operations).toContain('reverse-fold')
+  })
+
+  it('opens both wings level and symmetric at the end of Step 13, each turned on its hinge to the set angle', () => {
+    const state = foldedStateForStep(crane, 'crane-13')!
+    expect(isFlat(state)).toBe(false)
+    expect(checkState(state)).toEqual([])
+    const p = (name: string) => foldedPositionOf(state, state.points[name]!)!
+    // Each wing turns about a level hinge through the centre of the sheet, O.
+    const hingeY = p('O').y
+    // Worked by hand: the wing tip is 75 × (2 − √2) = 43.93 mm past the hinge (Step 9: the tip rises
+    // 0.414 × 106.07 mm above the top of the square base, and the hinge is on that top).
+    const wing = 75 * (2 - Math.SQRT2)
+    const turn = (CRANE_WING_DEGREES * Math.PI) / 180
+    const front = p('C')
+    const back = p('A')
+    for (const tip of [front, back]) {
+      expect(tip.y - hingeY).toBeCloseTo(wing * Math.cos(turn), 6)
+      expect(Math.abs(tip.z)).toBeCloseTo(wing * Math.sin(turn), 6)
+    }
+    // Level: both tips at the same height and the same place along the body; symmetric: one each side.
+    expect(front.y).toBeCloseTo(back.y, 6)
+    expect(front.x).toBeCloseTo(back.x, 6)
+    expect(front.z).toBeCloseTo(-back.z, 6)
+    for (const name of ['w1', 'w2']) {
+      const hinges = state.edges.filter((e) => e.creases.includes(name))
+      expect(hinges.length, name).toBeGreaterThan(0)
+      for (const e of hinges) expect(Math.abs(e.foldAngle), name).toBeCloseTo(CRANE_WING_DEGREES, 9)
+    }
+  })
+
+  it('Step 14 keeps the state of Step 13, with a note that the body is rounded by hand', () => {
+    expect(foldedStateForStep(crane, 'crane-14')).toBe(foldedStateForStep(crane, 'crane-13'))
+    const step14 = crane.foldSequence!.steps.find((s) => s.step === 'crane-14')!
+    expect(step14.actions).toEqual([])
+    expect(step14.note).toMatch(/by hand/)
+    // The fold sequence covers all 14 Steps.
+    expect(crane.foldSequence!.steps.map((s) => s.step)).toEqual(crane.steps.map((s) => s.id))
+  })
+
+  it('the finished crane from a 150 mm sheet has the size worked by hand, and it scales with the sheet', () => {
+    const boxFor = (side: number) => {
+      const sequence: FoldSequenceInput = { ...CRANE_FOLD_SEQUENCE, paper: { widthMm: side, heightMm: side } }
+      const result = runFoldSequence(sequence)
+      if (!result.ok) throw new Error(result.issue.message)
+      return boundingBox(result.final)
+    }
+    const box = boxFor(150)
+    // Wingspan (across the wings, z): two wings of 75 × (2 − √2) mm = 150 × (2 − √2) = 87.87 mm.
+    expect(box.depthMm).toBeCloseTo(150 * (2 - Math.SQRT2), 6)
+    // Neck tip to tail tip (x): each is a 75 mm flap turned 30° from upright, so 2 × 75 × sin 30° = 75 mm.
+    // The head is a reverse fold on a level line, so its tip keeps the neck tip's x.
+    expect(box.widthMm).toBeCloseTo(75, 6)
+    // The Model's stated finished size is the engine's, to a hundredth of a mm.
+    expect(crane.finishedSize).toMatchObject({ fromSheetMm: 150 })
+    expect(crane.finishedSize!.widthMm).toBeCloseTo(box.depthMm, 2)
+    expect(crane.finishedSize!.lengthMm).toBeCloseTo(box.widthMm, 2)
+    expect(crane.finishedSize!.heightMm).toBeCloseTo(box.heightMm, 2)
+    for (const side of [75, 300]) {
+      const other = boxFor(side)
+      const k = side / 150
+      expect(other.widthMm, `${side}`).toBeCloseTo(box.widthMm * k, 6)
+      expect(other.heightMm, `${side}`).toBeCloseTo(box.heightMm * k, 6)
+      expect(other.depthMm, `${side}`).toBeCloseTo(box.depthMm * k, 6)
+      const scaled = finishedSizeFor(crane.finishedSize!, side)
+      expect(scaled.widthMm, `${side}`).toBeCloseTo(other.depthMm, 1)
+    }
+    expect(finishedSizeLabel(crane)).toBe('About 9 cm wide from a 15 cm sheet')
+    expect(finishedSizeLabel(crane, 75)).toBe('About 4.5 cm wide from a 7.5 cm sheet')
+    expect(finishedSizeLabel(getModel('flapping-bird')!)).toBeNull()
   })
 
   it('fails the audit for a Model whose fold sequence has an impossible fold', () => {

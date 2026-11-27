@@ -1,4 +1,4 @@
-import { type ExplanationLevel, type Model, nextLevel } from '@origami/core'
+import { type ExplanationLevel, type Model, finishedSizeLabel, nextLevel } from '@origami/core'
 import { useEffect, useState } from 'react'
 import { explain, type ExplainResult } from '../lib/api'
 import { Badge } from './Badge'
@@ -159,6 +159,7 @@ export function BuildPanel({ model, onBack }: { model: Model; onBack: () => void
         <div className="flex items-center gap-2">
           <Badge>{model.paper.sheets === 1 ? '1 sheet' : `${model.paper.sheets} sheets`}</Badge>
           <Badge>{timeLabel(model.timeMinutes)}</Badge>
+          {finishedSizeLabel(model) ? <Badge>{finishedSizeLabel(model)}</Badge> : null}
         </div>
       </div>
 

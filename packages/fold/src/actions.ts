@@ -828,6 +828,39 @@ function reverseFold(state: FoldState, action: Reverse): FoldState {
   return state
 }
 
-function openFlaps(_state: FoldState, action: Open): FoldState {
-  fail('axiom', 'Opening flaps is not supported yet.', action.creases.join(', '))
+/**
+ * Turn the flaps on named hinge creases to a new fold angle, as a rigid turn about each crease.
+ * The faces on the side of each crease that its fold moved turn; the rest of the model stays.
+ * At 180° the flaps lie flat again; at 0° they lie open in the plane of the paper next to them.
+ */
+function openFlaps(state: FoldState, action: Open): FoldState {
+  const names = action.creases
+  const what = names.join(', ')
+  for (const n of names) {
+    if (creaseEdges(state, n).length === 0) fail('references', `Crease "${n}" does not exist.`, n)
+    if (!state.folds.some((r) => r.name === n)) fail('references', `Crease "${n}" is not folded now, so it cannot be opened.`, n)
+  }
+  // Faces that none of these folds moved keep their place.
+  const moved = state.folds.filter((r) => names.includes(r.name)).flatMap((r) => r.moved)
+  const all = state.faces.map((_, f) => f)
+  const still = all.filter((f) => !inAny(moved, centroid(flatPolygon(state, f))))
+  if (still.length === 0) fail('axiom', `Opening ${what} would leave no paper in its place.`, what)
+  const root = largestFace(state, still)
+  let hinges = 0
+  for (const edge of state.edges) {
+    if (!edge.creases.some((c) => names.includes(c))) continue
+    if (edge.assignment !== 'V' && edge.assignment !== 'M') continue
+    edge.foldAngle = (edge.assignment === 'V' ? 1 : -1) * action.degrees
+    hinges += 1
+  }
+  if (hinges === 0) fail('axiom', `The creases ${what} hold no folded paper to open.`, what)
+  const before = state.above.map((p) => [...p] as [number, number])
+  rebuildFromAngles(state, root, what)
+  if (isFlat(state)) {
+    const result = solveLayers(state, { prefer: before })
+    if (!result.ok) fail('layers', `After opening ${what}, the layers would cross: ${result.message}`, what)
+    state.above = result.above
+    refreshSides(state)
+  }
+  return state
 }
