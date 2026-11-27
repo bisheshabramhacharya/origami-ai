@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   SEED_LIBRARY,
+  SEED_MODELS,
   auditModel,
   getModel,
   libraryStats,
@@ -13,12 +14,12 @@ import {
 
 describe('seed library', () => {
   it('loads without errors, because a broken model must never reach a learner', () => {
-    const { issues } = parseLibrary(SEED_LIBRARY)
+    const { issues } = parseLibrary(SEED_MODELS)
     expect(issues.filter((issue) => issue.severity === 'error')).toEqual([])
   })
 
   it('gives every model provenance and a validation record', () => {
-    for (const model of SEED_LIBRARY) {
+    for (const model of SEED_MODELS) {
       expect(model.provenance.source.length, model.id).toBeGreaterThan(0)
       expect(model.provenance.license.length, model.id).toBeGreaterThan(0)
       expect(model.validation.checkedBy.length, model.id).toBeGreaterThan(0)
@@ -27,7 +28,7 @@ describe('seed library', () => {
   })
 
   it('has contiguous step ordinals starting at one', () => {
-    for (const model of SEED_LIBRARY) {
+    for (const model of SEED_MODELS) {
       expect(model.steps.map((step) => step.ordinal), model.id).toEqual(
         model.steps.map((_, index) => index + 1),
       )

@@ -41,7 +41,7 @@ Actions:
 - {"kind": "collapse" | "squash" | "petal", "set": [{"crease", "assignment": "V" | "M" | "F", "from"?, "to"?}], "keep"?: point}.
 - {"kind": "inside-reverse" | "outside-reverse", "name"?, "line", "flap": point, "moving"?: point}.
 - {"kind": "open", "creases": [names], "degrees": 0..180}: 0 is the open sheet and 180 is folded flat.
-Every action may have a short "note". A point that a fold brings must not be hidden under other layers. Name each crease you will use again.`
+"top" moves the top layer that carries the moving point; "above" also moves every layer in its way (over it for a valley fold, under it for a mountain fold). Every action may have a short "note". A point that a fold brings must not be hidden under other layers. Name each crease you will use again.`
 
 function stripFence(text: string): string {
   const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text)

@@ -1,9 +1,28 @@
 import { describe, expect, it } from 'vitest'
 import { type FoldSequenceInput, boundingBox, foldedPositionOf, runFoldSequence } from '@origami/fold'
 import { DART_FOLD_SEQUENCE, DART_WING_DEGREES, DART_WING_LINE_DEGREES } from '../src/data/plane-folds'
-import { type Model, SEED_LIBRARY, auditFoldSequence, finishedSizeLabel, auditModel, evaluateConstraints, findOptions, foldedStateForStep, getModel, parseBriefHeuristic, stepPlayback } from '../src'
+import {
+  type Model,
+  SEED_LIBRARY,
+  SEED_MODELS,
+  auditModel,
+  evaluateConstraints,
+  findOptions,
+  getModel,
+  libraryStats,
+  parseBriefHeuristic,
+  relatedModels,
+  searchLibrary,
+  diagram,
+  renderDiagram,
+  sheet,
+  auditFoldSequence,
+  foldedStateForStep,
+  stepPlayback,
+  finishedSizeLabel,
+} from '../src'
 
-const dart = () => getModel('paper-plane-dart')!
+const dart = () => getModel('paper-plane-dart', SEED_MODELS)!
 
 describe('the classic paper dart in the Library', () => {
   it('is a six-Step origami Model on one sheet of US Letter printer paper', () => {
@@ -28,16 +47,36 @@ describe('the classic paper dart in the Library', () => {
     expect(why.hard.join(' ')).toMatch(/not a validated/i)
   })
 
+  it('is not in the Library that the app and the API list, search, count and open (ADR-0001)', () => {
+    expect(SEED_MODELS.map((m) => m.id)).toContain('paper-plane-dart')
+    expect(SEED_LIBRARY.map((m) => m.id)).not.toContain('paper-plane-dart')
+    expect(SEED_LIBRARY.every((m) => m.validation.status === 'validated' && m.validation.foldableByHand)).toBe(true)
+    expect(getModel('paper-plane-dart')).toBeUndefined()
+    expect(searchLibrary('plane').map((m) => m.id)).not.toContain('paper-plane-dart')
+    expect(libraryStats().total).toBe(SEED_MODELS.length - 1)
+    for (const model of SEED_LIBRARY) expect(relatedModels(model).map((m) => m.id)).not.toContain('paper-plane-dart')
+  })
+
   it('once a person has folded it (validated), it comes first for a paper airplane', () => {
     const folded: Model = {
       ...dart(),
       validation: { status: 'validated', checkedBy: 'a person', checkedAt: '2026-11-28', checks: ['Folded end to end'], foldableByHand: true },
     }
-    const library = SEED_LIBRARY.map((m) => (m.id === folded.id ? folded : m))
+    const library = SEED_MODELS.map((m) => (m.id === folded.id ? folded : m))
     for (const request of ['paper airplane', 'a plane for my kid']) {
       const options = findOptions(parseBriefHeuristic(request), library)
       expect(options[0]?.model.id, request).toBe('paper-plane-dart')
     }
+  })
+})
+
+describe('the dart diagrams', () => {
+  it('draws the letter sheet at its true 8.5 by 11 shape, so a 45-degree crease looks like one', () => {
+    const svg = renderDiagram(diagram('x', sheet('letter')))
+    const m = svg.match(/M([\d.]+),([\d.]+) H([\d.]+) V([\d.]+)/)
+    expect(m).not.toBeNull()
+    const [x1, y1, x2, y2] = m!.slice(1).map(Number) as [number, number, number, number]
+    expect((x2 - x1) / (y2 - y1)).toBeCloseTo(215.9 / 279.4, 2)
   })
 })
 
@@ -72,7 +111,7 @@ describe('the finished dart: wings open', () => {
     return result.final
   }
 
-  it('opens both wings to the angle the sequence sets, level and symmetric, one each side of the body', () => {
+  it('opens both wings to 90 degrees from the body, mirror images of each other, one each side', () => {
     const state = finished()
     const p = (name: string) => foldedPositionOf(state, state.points[name]!)!
     const front = p('C')
@@ -90,6 +129,8 @@ describe('the finished dart: wings open', () => {
   })
 
   it('has the length and wingspan worked by hand, and they scale with the sheet', () => {
+    // Measured with the folded body edge (the keel) straight along the length. The wing hinges slope
+    // 11.25° to the keel, so a dart held with its wings level is a little longer along its flight line.
     // Wingspan: the farthest wing point from its hinge is where the second fold meets the side edge,
     // W/2 across and (W/2) / tan 22.5° down from the nose. At 90° it stands that far out on each side.
     const reach = (W / 2) * (Math.cos(t) - Math.sin(t) / Math.tan((22.5 * Math.PI) / 180))
@@ -112,5 +153,9 @@ describe('the finished dart: wings open', () => {
     }
     expect(finishedSizeLabel(model)).toBe('About 11 cm wide from a US Letter (8.5in x 11in) sheet')
     expect(finishedSizeLabel(model, 2 * H)).toBe('About 22 cm wide from a sheet 55.9 cm long')
+    // Only a named sheet goes by its name; a plain strip or a circle goes by its size.
+    const as = (shape: Model['paper']['shape']): Model => ({ ...model, paper: { ...model.paper, shape, size: 'any' } })
+    expect(finishedSizeLabel(as('rectangle'))).toBe('About 11 cm wide from a sheet 27.9 cm long')
+    expect(finishedSizeLabel(as('circle'))).toBe('About 11 cm wide from a circle 27.9 cm across')
   })
 })
