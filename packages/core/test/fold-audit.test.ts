@@ -5,6 +5,15 @@ import { FOLD_KIND_OPERATIONS, type Model, OPERATIONS, auditFoldSequence, auditL
 const crane = getModel('origami-crane')!
 
 describe('grounded check: the folds a Step does are the folds it declares', () => {
+  it('timing: checking the whole crane takes under 2 seconds, measured first in this file so the engine is not warm', () => {
+    const start = performance.now()
+    const result = runFoldSequence(crane.foldSequence!)
+    const ms = performance.now() - start
+    console.log(`Checking the whole crane (${result.ok ? result.steps.length : 0} Steps) took ${ms.toFixed(0)} ms.`)
+    expect(result.ok).toBe(true)
+    expect(ms).toBeLessThan(2000)
+  })
+
   it('maps every engine fold kind to an Operation', () => {
     for (const kind of FOLD_KINDS) expect(OPERATIONS, kind).toContain(FOLD_KIND_OPERATIONS[kind])
   })
@@ -36,12 +45,4 @@ describe('grounded check: the folds a Step does are the folds it declares', () =
     expect(messages).toEqual([expect.stringContaining('inside-reverse')])
   })
 
-  it('timing: checking the whole crane takes under 2 seconds', () => {
-    const start = performance.now()
-    const result = runFoldSequence(crane.foldSequence!)
-    const ms = performance.now() - start
-    console.log(`Checking the whole crane (${result.ok ? result.steps.length : 0} Steps) took ${ms.toFixed(0)} ms.`)
-    expect(result.ok).toBe(true)
-    expect(ms).toBeLessThan(2000)
-  })
 })
