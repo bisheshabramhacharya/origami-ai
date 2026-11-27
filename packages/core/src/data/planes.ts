@@ -1,6 +1,7 @@
 import type { ModelInput } from '../types'
 import { arrow, crease, diagram, label, line, mountain, poly, sheet, valley } from '../diagram'
 import { seedProvenance, step } from './helpers'
+import { DART_FOLD_SEQUENCE } from './plane-folds'
 
 /**
  * The classic dart on US Letter, portrait. Diagram units: the letter sheet is drawn from x 24 to 76
@@ -116,6 +117,7 @@ const paperPlaneDart: ModelInput = {
   tips: ['If it dives, bend the back edge of both wings up a little. If it climbs and stalls, bend them down.'],
   tags: ['beginner', 'quick', 'flies', 'no-tools', 'no-glue', 'one-sheet', 'letter'],
   provenance: seedProvenance('Traditional paper dart, public domain', 'Public domain'),
+  foldSequence: DART_FOLD_SEQUENCE,
   // Nobody has folded this Model end to end against these Steps yet, so it is not retrievable (ADR-0001).
   // A person folds it (ticket 14) and then sets it to validated.
   validation: {

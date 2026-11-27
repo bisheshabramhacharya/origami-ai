@@ -203,7 +203,9 @@ describe('fold sequences on Models', () => {
 
   it('leaves Models without a fold sequence as they were', () => {
     const others = SEED_LIBRARY.filter((model) => !hasFoldSequence(model))
-    expect(others.length).toBe(SEED_LIBRARY.length - 1)
+    // The crane and the paper dart have fold sequences.
+    expect(SEED_LIBRARY.filter(hasFoldSequence).map((model) => model.id).sort()).toEqual(['origami-crane', 'paper-plane-dart'])
+    expect(others.length).toBe(SEED_LIBRARY.length - 2)
     for (const model of others) expect(foldedStates(model).size).toBe(0)
   })
 })

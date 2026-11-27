@@ -243,6 +243,34 @@ function topmost(state: FoldState, candidates: number[]): number | null {
 }
 
 /** Faces that touch the moving side and are joined to the seed faces across that side. */
+/**
+ * A layer that lies over the paper that moves, on the side that moves, has to go with it: you cannot
+ * fold a lower layer over the line and leave a layer above it in place. Add every such layer, and the
+ * paper joined to it on that side, until none is left. Used for `above` folds, for example the wing of
+ * a paper plane, whose loose flaps lie over the wing.
+ */
+function withLayersAbove(state: FoldState, line: Line2, side: number, component: Set<number>): Set<number> {
+  if (!isFlat(state)) return component
+  const order = orderLookup(state)
+  const onSide = (f: number) => clipHalfPlane(foldedPolygon(state, f), line, side > 0)
+  const touching = state.faces.map((_, f) => f).filter((f) => faceTouches(state, line, f, side))
+  const out = new Set(component)
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const g of touching) {
+      if (out.has(g)) continue
+      const pg = onSide(g)
+      if (pg.length < 3) continue
+      const covers = [...out].some((c) => order(g, c) === 1 && overlapArea(pg, onSide(c)) > AREA_TOLERANCE_MM2)
+      if (!covers) continue
+      for (const h of movingComponent(state, line, side, [g])) out.add(h)
+      grew = true
+    }
+  }
+  return out
+}
+
 function movingComponent(state: FoldState, line: Line2, side: number, seeds: number[]): Set<number> {
   const touching = new Set(state.faces.map((_, f) => f).filter((f) => faceTouches(state, line, f, side)))
   const byEdge = new Map<string, number[]>()
@@ -305,7 +333,7 @@ function planFold(
   let component: Set<number>
   if (layers === 'all') {
     component = new Set(all.filter((f) => faceTouches(state, line, f, side)))
-  } else if (layers === 'top') {
+  } else if (layers === 'top' || layers === 'above') {
     const seed = resolved.seed
     let candidates: number[]
     if (seed) {
@@ -320,6 +348,7 @@ function planFold(
     const top = topmost(state, candidates)
     if (top === null) fail('references', `No layer is under the point that moves.`, what)
     component = movingComponent(state, line, side, [top])
+    if (layers === 'above') component = withLayersAbove(state, line, side, component)
   } else {
     const flap = resolvePoint(state, layers.flap)
     const seeds = all.filter((f) => faceTouches(state, line, f, side) && pointInConvex(flatPolygon(state, f), flap.flat))

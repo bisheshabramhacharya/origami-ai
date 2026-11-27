@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type Model, SEED_LIBRARY, auditModel, evaluateConstraints, findOptions, getModel, parseBriefHeuristic } from '../src'
+import { type Model, SEED_LIBRARY, auditFoldSequence, auditModel, evaluateConstraints, findOptions, foldedStateForStep, getModel, parseBriefHeuristic, stepPlayback } from '../src'
 
 const dart = () => getModel('paper-plane-dart')!
 
@@ -36,5 +36,24 @@ describe('the classic paper dart in the Library', () => {
       const options = findOptions(parseBriefHeuristic(request), library)
       expect(options[0]?.model.id, request).toBe('paper-plane-dart')
     }
+  })
+})
+
+describe("the dart's fold sequence", () => {
+  it('passes the engine and the grounded check for Steps 1 to 5', () => {
+    const model = dart()
+    expect(auditFoldSequence(model)).toEqual([])
+    for (const id of ['dart-1', 'dart-2', 'dart-3', 'dart-4', 'dart-5']) {
+      expect(foldedStateForStep(model, id), id).not.toBeNull()
+      const playback = stepPlayback(model, id)
+      expect(playback?.motions.length, id).toBeGreaterThan(0)
+    }
+  })
+
+  it('fails the grounded check when Step 4 does not declare its mountain fold', () => {
+    const model = dart()
+    const broken: Model = { ...model, steps: model.steps.map((s) => (s.id === 'dart-4' ? { ...s, operations: ['press-flat'] } : s)) }
+    const messages = auditFoldSequence(broken).map((issue) => issue.message)
+    expect(messages).toEqual([expect.stringContaining('"mountain-fold"')])
   })
 })

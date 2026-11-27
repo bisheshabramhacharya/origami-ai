@@ -35,7 +35,7 @@ export const FOLD_LANGUAGE_RULES = `Write one fold sequence in the fold language
 Points and lines are named, never raw coordinates. Start names: corners A (top left), B (top right), C (bottom right), D (bottom left), coloured side up; edge midpoints AB, BC, CD, DA; the centre O.
 A point is a name, {"intersect": [line, line]}, or {"along": [point, point], "fraction": 0..1} on the flat sheet. A line is {"crease": name} or {"through": [point, point]}.
 Actions:
-- {"kind": "valley" | "mountain", "name"?, "line", "layers"?: "all" | "top" | {"flap": point}, "moving"?: point, "degrees"?: 0..180}. The line is {"bring": point, "to": point}, {"through": [point, point]}, {"bringEdge": [point, point], "to": line}, {"crease": name} or {"pivot": point, "angleDeg": number}.
+- {"kind": "valley" | "mountain", "name"?, "line", "layers"?: "all" | "top" | "above" | {"flap": point}, "moving"?: point, "degrees"?: 0..180}. The line is {"bring": point, "to": point}, {"through": [point, point]}, {"bringEdge": [point, point], "to": line}, {"crease": name} or {"pivot": point, "angleDeg": number}.
 - {"kind": "unfold", "last": n} or {"kind": "unfold", "creases": [names]}.
 - {"kind": "turn-over", "axis"?: "vertical" | "horizontal"} and {"kind": "rotate", "degrees": number}.
 - {"kind": "collapse" | "squash" | "petal", "set": [{"crease", "assignment": "V" | "M" | "F", "from"?, "to"?}], "keep"?: point}.
