@@ -39,3 +39,11 @@ every flat vertex, and a layer order with no crossing layers.
   from crease assignments, so their in-between animation frames are an approximation and are labelled.
 - The first page bundle grows only by the Fold sequence data and its schema. The engine and three.js
   are in a chunk that loads on demand.
+- Reverse folds cut a flap that is folded in half along a spine. Each half of the part that moves turns
+  over on its own, and the spine of that part turns the other way. Inside and outside reverse folds on
+  the same line differ only in layer order, and the paper allows only one of them: when the turned spine
+  lands inside the flap, only an inside reverse fold is possible; when it lands beyond the spine, only an
+  outside one. The engine gives a layer-order error for the other, so a wrong kind cannot pass.
+- Lines that diagrams draw by eye (the crane's neck, its head) are written as a line through a named
+  point at an angle, and a point can be a fraction of the way between two named points. These are the
+  only places a number stands for a position.

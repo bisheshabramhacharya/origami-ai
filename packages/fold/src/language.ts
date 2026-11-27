@@ -10,13 +10,18 @@ import { z } from 'zod'
  * named lines as a point.
  */
 
-export type PointRef = string | { intersect: [LineRef, LineRef] }
+export type PointRef =
+  | string
+  | { intersect: [LineRef, LineRef] }
+  /** The point a fraction of the way from one point to another on the flat sheet (0 is the first point). */
+  | { along: [PointRef, PointRef]; fraction: number }
 export type LineRef = { crease: string } | { through: [PointRef, PointRef] }
 
 export const PointRefSchema: z.ZodType<PointRef> = z.lazy(() =>
   z.union([
     z.string().min(1),
     z.object({ intersect: z.tuple([LineRefSchema, LineRefSchema]) }).strict(),
+    z.object({ along: z.tuple([PointRefSchema, PointRefSchema]), fraction: z.number().min(0).max(1) }).strict(),
   ]),
 )
 
@@ -37,6 +42,11 @@ export const FoldLineSchema = z.union([
   z.object({ bringEdge: z.tuple([PointRefSchema, PointRefSchema]), to: LineRefSchema }).strict(),
   /** Fold again along a crease that already exists. Say which side moves with `moving`. */
   z.object({ crease: z.string().min(1) }).strict(),
+  /**
+   * A line through a point at an angle the diagram draws by eye (degrees counter-clockwise from the
+   * learner's horizontal), for example the neck of the crane. Say which side moves with `moving`.
+   */
+  z.object({ pivot: PointRefSchema, angleDeg: z.number().min(-360).max(360) }).strict(),
 ])
 export type FoldLine = z.infer<typeof FoldLineSchema>
 

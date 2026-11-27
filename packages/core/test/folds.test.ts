@@ -69,6 +69,18 @@ describe('fold sequences on Models', () => {
     for (const id of ['crane-9', 'crane-10']) expect(crane.steps.find((s) => s.id === id)!.operations).toContain('petal-fold')
   })
 
+  it('thins the body and folds the neck, tail and head in Steps 11 to 13', () => {
+    for (const id of ['crane-11', 'crane-12', 'crane-13']) expect(checkState(foldedStateForStep(crane, id)!), id).toEqual([])
+    const width = (id: string) => {
+      const xs = outline(foldedStateForStep(crane, id)!).map((p) => p.x)
+      return Math.max(...xs) - Math.min(...xs)
+    }
+    expect(width('crane-11')).toBeLessThan(width('crane-10'))
+    // Neck and tail go up and out: the model is wider than the thin body again.
+    expect(width('crane-12')).toBeGreaterThan(width('crane-11'))
+    for (const id of ['crane-12', 'crane-13']) expect(crane.steps.find((s) => s.id === id)!.operations).toContain('reverse-fold')
+  })
+
   it('fails the audit for a Model whose fold sequence has an impossible fold', () => {
     const broken: Model = {
       ...crane,

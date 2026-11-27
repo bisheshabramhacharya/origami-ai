@@ -4,6 +4,10 @@ import type { FoldSequenceInput } from '@origami/fold'
  * The crane's exact folds, one group per Step, in the fold language. 150 mm kami, coloured side
  * up. Corners: A top left, B top right, C bottom right, D bottom left (on the flat sheet).
  */
+const meet = (a: string, b: string) => ({ intersect: [{ crease: a }, { crease: b }] as [{ crease: string }, { crease: string }] })
+/** The centre line of the bird base, from its two points to its bottom. */
+const centreLine = { through: ['A', 'B'] as [string, string] }
+
 export const CRANE_FOLD_SEQUENCE: FoldSequenceInput = {
   paper: { widthMm: 150, heightMm: 150 },
   steps: [
@@ -115,6 +119,50 @@ export const CRANE_FOLD_SEQUENCE: FoldSequenceInput = {
             { crease: 'b2', assignment: 'F', from: 'AB', to: { intersect: [{ crease: 'k3' }, { crease: 'b2' }] } },
             { crease: 'b1', assignment: 'F', from: 'DA', to: { intersect: [{ crease: 'k4' }, { crease: 'b1' }] } },
           ],
+        },
+      ],
+    },
+    {
+      step: 'crane-11',
+      actions: [
+        { kind: 'valley', name: 'n1', line: { bringEdge: ['D', meet('k4', 'b1')], to: centreLine }, layers: 'top' },
+        { kind: 'valley', name: 'n2', line: { bringEdge: ['B', meet('k3', 'b2')], to: centreLine }, layers: 'top' },
+        { kind: 'turn-over' },
+        { kind: 'valley', name: 'n3', line: { bringEdge: ['B', meet('k1', 'b1')], to: centreLine }, layers: 'top' },
+        { kind: 'valley', name: 'n4', line: { bringEdge: ['D', meet('k2', 'b2')], to: centreLine }, layers: 'top' },
+      ],
+    },
+    {
+      step: 'crane-12',
+      actions: [
+        {
+          kind: 'inside-reverse',
+          name: 'r1',
+          note: 'The neck: the left long point goes up between the wings, 30° from upright.',
+          line: { pivot: 'DA', angleDeg: 15 },
+          flap: 'D',
+          moving: 'D',
+        },
+        {
+          kind: 'inside-reverse',
+          name: 'r2',
+          note: 'The tail: the same on the right.',
+          line: { pivot: 'DA', angleDeg: -15 },
+          flap: 'B',
+          moving: 'B',
+        },
+      ],
+    },
+    {
+      step: 'crane-13',
+      actions: [
+        {
+          kind: 'inside-reverse',
+          name: 'h1',
+          note: 'The head: a quarter of the way down the neck. The wings open in the next action (ticket 06).',
+          line: { pivot: { along: ['D', 'DA'], fraction: 0.25 }, angleDeg: 0 },
+          flap: 'D',
+          moving: 'D',
         },
       ],
     },
