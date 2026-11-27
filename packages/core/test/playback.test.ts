@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type FoldState, checkNoStretch, foldedPositionOf } from '@origami/fold'
+import { type FoldSequenceInput, type FoldState, actionMotion, checkNoStretch, foldSequence, foldedPositionOf } from '@origami/fold'
 import { foldedStateBeforeStep, foldedStateForStep, getModel, stepPlayback } from '../src'
 
 const crane = getModel('origami-crane')!
@@ -28,7 +28,7 @@ describe('Step playback for the 3D player', () => {
     for (const id of ['crane-2', 'crane-3', 'crane-4']) {
       const playback = stepPlayback(crane, id)!
       const step = crane.foldSequence!.steps.find((s) => s.step === id)!
-      expect(playback.motions.map((m) => m.kind), id).toEqual(step.actions.map((a) => (a.kind === 'unfold' ? 'unfold' : a.kind)))
+      expect(playback.motions.map((m) => m.kind), id).toEqual(step.actions.map((a) => a.kind))
       expect(playback.before, id).toBe(foldedStateBeforeStep(crane, id))
       expect(playback.after, id).toBe(foldedStateForStep(crane, id))
       // The first motion starts where the Step starts, and the last one ends where it ends.
@@ -86,5 +86,37 @@ describe('Step playback for the 3D player', () => {
       }
       expect(far(from.folded, playback!.after.folded), step.id).toBeLessThan(1e-9)
     }
+  })
+
+  it('rotating, opening and unfolding are exact too, and checked at every tenth of the way', () => {
+    const kinds = new Set<string>()
+    for (const id of ['crane-2', 'crane-5', 'crane-13']) {
+      for (const motion of stepPlayback(crane, id)!.motions) {
+        if (!['rotate', 'open', 'unfold'].includes(motion.kind)) continue
+        kinds.add(motion.kind)
+        expect(motion.exact, `${id} ${motion.kind}`).toBe(true)
+        for (let t = 0.05; t < 1; t += 0.1) expect(checkNoStretch(motion.stateAt(t)), `${id} ${motion.kind} ${t}`).toEqual([])
+      }
+    }
+    expect([...kinds].sort()).toEqual(['open', 'rotate', 'unfold'])
+  })
+
+  it('a rotation of more than half a turn plays the long way round', () => {
+    const paper = { widthMm: 100, heightMm: 100 }
+    const steps: FoldSequenceInput['steps'] = [{ step: 'r', actions: [{ kind: 'rotate', degrees: 270 }] }]
+    const run = foldSequence({ paper, steps })
+    const before = foldSequence({ paper, steps: [{ step: 'none', actions: [] }] }).final
+    const after = run.final
+    const motion = actionMotion(before, after, 'rotate', { turnDegrees: 270 })
+    expect(motion.exact).toBe(true)
+    // Halfway, corner B (top right, at (100, 100) from the centre (50, 50)) has turned 135° counter-clockwise.
+    const halfway = motion.stateAt(0.5)
+    const b = foldedPositionOf(halfway, halfway.points.B!)!
+    const angle = (p: { x: number; y: number }) => Math.atan2(p.y - 50, p.x - 50)
+    const start = Math.atan2(50, 50)
+    const turned = (((angle(b) - start) * 180) / Math.PI + 360) % 360
+    expect(turned).toBeCloseTo(135, 3)
+    // The shortest turn would have gone 45° the other way at halfway.
+    expect(Math.abs(turned - 315)).toBeGreaterThan(1)
   })
 })

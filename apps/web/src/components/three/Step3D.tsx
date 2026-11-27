@@ -6,8 +6,23 @@ import { FoldScene } from './FoldScene'
 /** Seconds each action takes to play. */
 const SECONDS_PER_ACTION = 1.6
 
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
+
 function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(REDUCED_MOTION).matches
+}
+
+/** The reduced-motion setting, kept up to date when the learner changes it while the page is open. */
+function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(prefersReducedMotion)
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    const query = window.matchMedia(REDUCED_MOTION)
+    const onChange = () => setReduced(query.matches)
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }, [])
+  return reduced
 }
 
 /**
@@ -28,10 +43,16 @@ export default function Step3D({ model, stepId, stepLabel }: { model: Model; ste
  */
 function Player({ playback, note, stepLabel }: { playback: StepPlayback; note?: string; stepLabel: string }) {
   const count = playback.motions.length
-  const reduced = useMemo(prefersReducedMotion, [])
+  const reduced = useReducedMotion()
   // Progress runs from 0 (the start of the Step) to `count` (its end); action i plays from i to i + 1.
   const [progress, setProgress] = useState(() => (reduced ? count : 0))
   const [playing, setPlaying] = useState(() => !reduced && count > 0)
+  // Turning reduced motion on while a fold plays stops it at the end state.
+  useEffect(() => {
+    if (!reduced) return
+    setPlaying(false)
+    setProgress(count)
+  }, [reduced, count])
   const [viewKey, setViewKey] = useState(0)
   const last = useRef<number | null>(null)
 
