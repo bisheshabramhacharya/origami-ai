@@ -29,6 +29,7 @@ export {
   boundingBox,
   outline,
   layersAt,
+  stackAt,
   type DisplayMesh,
   type DisplayFace,
   type DisplayEdge,

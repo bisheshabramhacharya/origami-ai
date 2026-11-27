@@ -33,6 +33,7 @@ export interface ResolvedLine {
 
 export function pointLabel(ref: PointRef): string {
   if (typeof ref === 'string') return ref
+  if ('along' in ref) return `the point ${ref.fraction} of the way from ${pointLabel(ref.along[0])} to ${pointLabel(ref.along[1])}`
   return `the meeting point of ${lineLabel(ref.intersect[0])} and ${lineLabel(ref.intersect[1])}`
 }
 
@@ -107,6 +108,14 @@ export function resolvePoint(state: FoldState, ref: PointRef): ResolvedPoint {
     return { flat, folded, label: ref }
   }
   const label = pointLabel(ref)
+  if ('along' in ref) {
+    const p = resolvePoint(state, ref.along[0])
+    const q = resolvePoint(state, ref.along[1])
+    const flat = v2(p.flat.x + (q.flat.x - p.flat.x) * ref.fraction, p.flat.y + (q.flat.y - p.flat.y) * ref.fraction)
+    const folded = foldedPositionOf(state, flat)
+    if (!folded) fail('references', `${label} is not on the paper.`, label)
+    return { flat, folded, label }
+  }
   const hits = shapeIntersections(flatShape(state, ref.intersect[0]), flatShape(state, ref.intersect[1]))
     .map((flat) => ({ flat, folded: foldedPositionOf(state, flat) }))
     .filter((hit): hit is { flat: Vec2; folded: Vec3 } => hit.folded !== null)

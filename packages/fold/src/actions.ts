@@ -38,6 +38,7 @@ import {
   addVertex,
   cloneState,
   edgeKey,
+  faceLevels,
   facesAtFlatPoint,
   faceMap,
   findEdge,
@@ -140,7 +141,11 @@ function resolveFoldLine(state: FoldState, line: SimpleFold['line'], moving: Sim
     return { line: scored[0]!.c, movingAt: b, seed: { flat: p2.flat, folded: b } }
   }
   let resolved: Line2
-  if ('through' in line) {
+  if ('pivot' in line) {
+    const p = resolvePoint(state, line.pivot)
+    const a = line.angleDeg * DEG
+    resolved = { origin: flat2(p.folded), dir: v2(Math.cos(a), Math.sin(a)) }
+  } else if ('through' in line) {
     resolved = resolveLine(state, { through: line.through }).line
   } else {
     resolved = resolveLine(state, { crease: line.crease }).line
@@ -643,8 +648,281 @@ function compound(state: FoldState, action: Compound): FoldState {
 // ---------------------------------------------------------------------------------------------
 // Reverse folds and open: added with tickets 05 and 06.
 
-function reverseFold(_state: FoldState, action: Reverse): FoldState {
-  fail('axiom', `${action.kind} folds are not supported yet.`, action.name)
+/**
+ * Reverse fold of a flap that is folded in half along a spine. The flap is cut along the line; the part
+ * beyond it turns over the line. Inside: each half of the part goes into the middle of the flap, so it
+ * ends between the two halves. Outside: each half wraps around the outside. Either way the spine of the
+ * part that moves changes from mountain to valley or back, and the two halves keep their order.
+ */
+function reverseFold(state: FoldState, action: Reverse): FoldState {
+  if (!isFlat(state)) fail('axiom', 'A reverse fold needs the model to lie flat first.', action.name)
+  const resolved = resolveFoldLine(state, action.line, action.moving)
+  const name = action.name ?? autoName(state)
+  const plan = planFold(state, resolved, { flap: action.flap }, name)
+  assertNoTear(state, plan.line, plan.moving, name)
+  const inside = action.kind === 'inside-reverse'
+
+  const owners = new Map<string, number[]>()
+  state.faces.forEach((face, f) => {
+    for (let i = 0; i < face.length; i += 1) {
+      const key = edgeKey(face[i]!, face[(i + 1) % face.length]!)
+      const list = owners.get(key)
+      if (list) list.push(f)
+      else owners.set(key, [f])
+    }
+  })
+  // Hinges: edges on the line between a face that moves and one that stays.
+  const hinges: Array<{ edge: number; still: number; moving: number }> = []
+  state.edges.forEach((edge, ei) => {
+    const [a, b] = edge.vertices
+    if (vertexSide(state, plan.line, a) !== 0 || vertexSide(state, plan.line, b) !== 0) return
+    const fs = owners.get(edgeKey(a, b)) ?? []
+    if (fs.length !== 2) return
+    const [f, g] = fs as [number, number]
+    if (plan.moving.has(f) === plan.moving.has(g)) return
+    hinges.push({ edge: ei, still: plan.moving.has(f) ? g : f, moving: plan.moving.has(f) ? f : g })
+  })
+  if (hinges.length === 0) fail('axiom', `The reverse fold ${name} moves no paper about a crease.`, name)
+
+  // The stack where most hinges overlap on the line; its top half and bottom half are the flap's halves.
+  const along = (vi: number) => {
+    const p = flat2(state.folded[vi]!)
+    return (p.x - plan.line.origin.x) * plan.line.dir.x + (p.y - plan.line.origin.y) * plan.line.dir.y
+  }
+  const spans = hinges.map((h) => {
+    const [a, b] = state.edges[h.edge]!.vertices
+    const ta = along(a)
+    const tb = along(b)
+    return [Math.min(ta, tb), Math.max(ta, tb)] as [number, number]
+  })
+  let bestT = 0
+  let bestCount = -1
+  for (const [lo, hi] of spans) {
+    const t = (lo + hi) / 2
+    const count = spans.filter(([l, h]) => l < t - 1e-6 && h > t + 1e-6).length
+    if (count > bestCount) {
+      bestCount = count
+      bestT = t
+    }
+  }
+  const order = orderLookup(state)
+  const stack = [...new Set(hinges.filter((_, i) => spans[i]![0] < bestT - 1e-6 && spans[i]![1] > bestT + 1e-6).map((h) => h.moving))]
+  stack.sort((x, y) => (order(x, y) === 1 ? -1 : order(y, x) === 1 ? 1 : 0))
+  if (stack.length < 2) fail('axiom', `The flap at ${name} has ${stack.length} layer at the fold. A reverse fold needs a flap folded in half.`, name)
+
+  // The spine: where the flap's fold crosses the fold line. At a vertex on the line, a folded edge
+  // of the part that stays runs on into a folded edge of the part that moves, in one straight line on
+  // the sheet. The spine is that folded edge and the folded edges that continue it, end to end.
+  const folded = (ei: number) => {
+    const e = state.edges[ei]!
+    return (e.assignment === 'V' || e.assignment === 'M') && Math.abs(Math.abs(e.foldAngle) - 180) < 1e-6
+  }
+  const edgeFaces = (ei: number) => {
+    const [a, b] = state.edges[ei]!.vertices
+    return owners.get(edgeKey(a, b)) ?? []
+  }
+  const kindOf = (ei: number) => {
+    const fs = edgeFaces(ei)
+    if (fs.length !== 2) return 'other'
+    const m = fs.filter((f) => plan.moving.has(f)).length
+    return m === 2 ? 'moving' : m === 0 ? 'still' : 'other'
+  }
+  const byVertex = new Map<number, number[]>()
+  state.edges.forEach((e, ei) => {
+    if (!folded(ei)) return
+    for (const v of e.vertices) {
+      const list = byVertex.get(v)
+      if (list) list.push(ei)
+      else byVertex.set(v, [ei])
+    }
+  })
+  const direction = (ei: number, from: number) => {
+    const [a, b] = state.edges[ei]!.vertices
+    const to = a === from ? b : a
+    const p = state.vertices[from]!
+    const q = state.vertices[to]!
+    const d = Math.hypot(q.x - p.x, q.y - p.y)
+    return v2((q.x - p.x) / d, (q.y - p.y) / d)
+  }
+  const stackSet = new Set(stack)
+  // Every crease that crosses the fold line runs on from the part that stays into the part that moves.
+  // Each is a candidate spine; the spine is the one that splits the flap into two halves, one above the other.
+  const chains: Array<Set<number>> = []
+  for (const [v, list] of byVertex) {
+    if (vertexSide(state, plan.line, v) !== 0) continue
+    for (const mi of list) {
+      if (kindOf(mi) !== 'moving') continue
+      if (!edgeFaces(mi).some((f) => stackSet.has(f))) continue
+      if (chains.some((c) => c.has(mi))) continue
+      const dm = direction(mi, v)
+      const crosses = list.some((si) => {
+        if (kindOf(si) !== 'still') return false
+        const ds = direction(si, v)
+        return dm.x * ds.x + dm.y * ds.y < -1 + 1e-9
+      })
+      if (!crosses) continue
+      // Walk the crease away from the line, end to end along the same flat direction.
+      const chain = new Set<number>()
+      let edge = mi
+      let at = v
+      while (!chain.has(edge)) {
+        chain.add(edge)
+        const [a, b] = state.edges[edge]!.vertices
+        const next = a === at ? b : a
+        const d = direction(edge, at)
+        const onward = (byVertex.get(next) ?? []).find((ei) => {
+          if (ei === edge || kindOf(ei) !== 'moving') return false
+          const e2 = direction(ei, next)
+          return d.x * e2.x + d.y * e2.y > 1 - 1e-9
+        })
+        if (onward === undefined) break
+        at = next
+        edge = onward
+      }
+      chains.push(chain)
+    }
+  }
+  // Spread two halves over every face that moves: crossing the spine changes half, crossing any other edge
+  // does not. Null when the chain does not split the flap into two halves, one above the other at the fold.
+  const halvesFor = (chain: Set<number>): Map<number, 0 | 1> | null => {
+    const spineKeys = new Set([...chain].map((ei) => edgeKey(...state.edges[ei]!.vertices)))
+    const half = new Map<number, 0 | 1>()
+    half.set(stack[0]!, 0)
+    const queue = [stack[0]!]
+    while (queue.length > 0) {
+      const f = queue.shift()!
+      const face = state.faces[f]!
+      for (let i = 0; i < face.length; i += 1) {
+        const key = edgeKey(face[i]!, face[(i + 1) % face.length]!)
+        for (const g of owners.get(key) ?? []) {
+          if (g === f || !plan.moving.has(g)) continue
+          const want = (spineKeys.has(key) ? 1 - half.get(f)! : half.get(f)!) as 0 | 1
+          const has = half.get(g)
+          if (has === undefined) {
+            half.set(g, want)
+            queue.push(g)
+          } else if (has !== want) return null
+        }
+      }
+    }
+    const halves = stack.map((f) => half.get(f))
+    const split = halves.findIndex((h) => h !== 0)
+    if (split < 0 || halves.slice(split).some((h) => h !== 1)) return null
+    return half
+  }
+  const found: Array<Map<number, 0 | 1>> = []
+  for (const chain of chains) {
+    const h = halvesFor(chain)
+    if (h && !found.some((o) => [...h].every(([f, x]) => o.get(f) === x))) found.push(h)
+  }
+  if (found.length === 0) {
+    fail('axiom', `The flap at ${name} is not one flap folded in half along a spine, so there is nothing to reverse.`, name)
+  }
+  // A thin fold or a hem on the flap can also split it one above the other. The spine is taken to be
+  // the crease that splits the layers at the fold most evenly (see ADR 0004 for where this falls short).
+  const unevenness = (h: Map<number, 0 | 1>) => Math.abs(stack.filter((f) => h.get(f) === 0).length * 2 - stack.length)
+  found.sort((a, b) => unevenness(a) - unevenness(b))
+  if (found.length > 1 && unevenness(found[0]!) === unevenness(found[1]!)) {
+    fail('axiom', `The flap at ${name} can open along more than one spine. Fold a flap with one spine.`, name)
+  }
+  const half = found[0]!
+  for (const f of plan.moving) if (!half.has(f)) fail('axiom', `Part of the flap at ${name} is not joined to the rest.`, name)
+
+  // Faces that stay but belong to the flap take the half of the face across their hinge.
+  const stillHalf = new Map<number, 0 | 1>()
+  for (const h of hinges) stillHalf.set(h.still, half.get(h.moving)!)
+
+  // New crease: each half turns toward the middle (inside) or away from it (outside).
+  for (const h of hinges) {
+    const edge = state.edges[h.edge]!
+    const front = half.get(h.moving) === 0
+    const up = inside ? !front : front
+    const valleyOnColour = up !== isFlipped(state, h.still)
+    edge.assignment = valleyOnColour ? 'V' : 'M'
+    edge.foldAngle = valleyOnColour ? 180 : -180
+    if (!edge.creases.includes(name)) edge.creases.push(name)
+  }
+  // The spine of the part that moves turns the other way.
+  state.edges.forEach((edge) => {
+    const [a, b] = edge.vertices
+    const fs = owners.get(edgeKey(a, b)) ?? []
+    if (fs.length !== 2 || !fs.every((f) => plan.moving.has(f))) return
+    if (half.get(fs[0]!) === half.get(fs[1]!)) return
+    if (edge.assignment === 'V' || edge.assignment === 'M') {
+      edge.assignment = edge.assignment === 'V' ? 'M' : 'V'
+      edge.foldAngle = -edge.foldAngle
+    }
+  })
+
+  const before = state.above.map((p) => [...p] as [number, number])
+  // Where in the old order the flap opens: between the lowest layer of its front half and the highest
+  // layer of its back half. Other layers that stay are tried on the same side of the opening as before.
+  const levelsBefore = faceLevels(state)
+  const lastFront = stack.filter((f) => half.get(f) === 0).at(-1)!
+  const firstBack = stack.find((f) => half.get(f) === 1)!
+  const opening = (levelsBefore[lastFront]! + levelsBefore[firstBack]!) / 2
+  rotateFaces(state, plan.moving, plan.line, Math.PI)
+  recordFold(state, name, plan.moving)
+
+  // Layer order: each half turns over on its own; the halves keep their order; the part that moves
+  // goes between the halves (inside) or around them (outside).
+  const was = new Set(before.map(([u, l]) => `${u},${l}`))
+  // A layer outside the flap (a wing, the body) that lay above the flap stays above all of it, and
+  // one that lay below stays below. Only a layer with no known place uses the old levels as a hint.
+  const outsideSide = new Map<number, 'above' | 'below' | null>()
+  for (let s = 0; s < state.faces.length; s += 1) {
+    if (plan.moving.has(s) || stillHalf.has(s)) continue
+    let above = false
+    let below = false
+    for (const m of plan.moving) {
+      if (was.has(`${s},${m}`)) above = true
+      if (was.has(`${m},${s}`)) below = true
+    }
+    outsideSide.set(s, above && !below ? 'above' : below && !above ? 'below' : null)
+  }
+  const fixed: Array<[number, number]> = []
+  const prefer: Array<[number, number]> = []
+  const n = state.faces.length
+  for (let a = 0; a < n; a += 1) {
+    for (let b = a + 1; b < n; b += 1) {
+      const am = plan.moving.has(a)
+      const bm = plan.moving.has(b)
+      const aAbove = was.has(`${a},${b}`)
+      const bAbove = was.has(`${b},${a}`)
+      if (am !== bm) {
+        const m = am ? a : b
+        const s = am ? b : a
+        const side = outsideSide.get(s)
+        if (side === 'above') fixed.push([s, m])
+        else if (side === 'below') fixed.push([m, s])
+        else if (side === null) {
+          if (inside) prefer.push((levelsBefore[s] ?? 0) > opening ? [s, m] : [m, s])
+          else prefer.push(half.get(m) === 0 ? [m, s] : [s, m])
+        }
+      }
+      if (am && bm) {
+        const sameHalf = half.get(a) === half.get(b)
+        if (aAbove) fixed.push(sameHalf ? [b, a] : [a, b])
+        else if (bAbove) fixed.push(sameHalf ? [a, b] : [b, a])
+      } else if (!am && !bm) {
+        if (aAbove) fixed.push([a, b])
+        else if (bAbove) fixed.push([b, a])
+      } else {
+        const m = am ? a : b
+        const s = am ? b : a
+        const sh = stillHalf.get(s)
+        if (sh === undefined) continue
+        const sFront = sh === 0
+        if (inside) fixed.push(sFront ? [s, m] : [m, s])
+        else fixed.push(half.get(m) === 0 ? [m, s] : [s, m])
+      }
+    }
+  }
+  const result = solveLayers(state, { fixed, prefer })
+  if (!result.ok) fail('layers', `After the ${action.kind} fold ${name}, the layers would cross: ${result.message}`, name)
+  state.above = result.above
+  refreshSides(state)
+  return state
 }
 
 function openFlaps(_state: FoldState, action: Open): FoldState {

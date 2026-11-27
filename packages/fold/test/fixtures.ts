@@ -99,3 +99,34 @@ export const petalBack: FoldSequenceInput['steps'][number] = {
     },
   ],
 }
+
+const centre = { through: ['A', 'B'] as [string, string] }
+
+/** Thin the body (crane Step 11): the lower edges of the front, then of the back, to the centre line. */
+export const thin: FoldSequenceInput['steps'][number] = {
+  step: '11',
+  actions: [
+    { kind: 'valley', name: 'n1', line: { bringEdge: ['D', meet('k4', 'b1')], to: centre }, layers: 'top' },
+    { kind: 'valley', name: 'n2', line: { bringEdge: ['B', meet('k3', 'b2')], to: centre }, layers: 'top' },
+    { kind: 'turn-over' },
+    { kind: 'valley', name: 'n3', line: { bringEdge: ['B', meet('k1', 'b1')], to: centre }, layers: 'top' },
+    { kind: 'valley', name: 'n4', line: { bringEdge: ['D', meet('k2', 'b2')], to: centre }, layers: 'top' },
+  ],
+}
+
+/** Neck and tail (crane Step 12): reverse folds of the two long points, 15° from the learner's horizontal. */
+export const neckAndTail = (kind: 'inside-reverse' | 'outside-reverse' = 'inside-reverse'): FoldSequenceInput['steps'][number] => ({
+  step: '12',
+  actions: [
+    { kind, name: 'r1', line: { pivot: 'DA', angleDeg: 15 }, flap: 'D', moving: 'D' },
+    { kind, name: 'r2', line: { pivot: 'DA', angleDeg: -15 }, flap: 'B', moving: 'B' },
+  ],
+})
+
+/** The head (crane Step 13): an inside reverse fold a quarter of the way down the neck. */
+export const head: FoldSequenceInput['steps'][number] = {
+  step: '13',
+  actions: [{ kind: 'inside-reverse', name: 'h1', line: { pivot: { along: ['D', 'DA'], fraction: 0.25 }, angleDeg: 0 }, flap: 'D', moving: 'D' }],
+}
+
+export const birdBase = [...kites, topFold, petalFront(), petalBack]
