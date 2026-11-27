@@ -45,7 +45,8 @@ function sheetPath(shape: PaperShape): string {
     case 'a4':
       return 'M26,12 H74 V88 H26 Z'
     case 'letter':
-      return 'M24,14 H76 V86 H24 Z'
+      // 8.5 by 11 in: 55.6 wide by 72 tall, so a 45-degree crease draws at 45 degrees.
+      return 'M22.2,14 H77.8 V86 H22.2 Z'
     case 'circle':
       return 'M50,12 A38,38 0 1 1 49.9,12 Z'
   }
