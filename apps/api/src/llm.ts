@@ -18,7 +18,7 @@ export function llmSettings(): LlmSettings | null {
   return { apiKey, model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL }
 }
 
-async function callAnthropic(settings: LlmSettings, system: string, prompt: string, maxTokens: number): Promise<string> {
+export async function callAnthropic(settings: LlmSettings, system: string, prompt: string, maxTokens: number): Promise<string> {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {

@@ -173,5 +173,8 @@ export function assertReachable(state: FoldState, point: ResolvedPoint): void {
     .filter((f) => !carriers.includes(f) && pointInConvex(foldedPolygon(state, f), at, true))
   // Reachable when at least one face that carries the point has nothing above it there.
   const covered = carriers.every((c) => covers.some((f) => order(f, c) === 1))
-  if (covered) fail('references', `Point ${point.label} is hidden under other layers.`, point.label)
+  if (covered) {
+    const name = point.label.startsWith('the ') ? `T${point.label.slice(1)}` : `Point ${point.label}`
+    fail('references', `${name} is hidden under other layers.`, point.label)
+  }
 }

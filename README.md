@@ -85,6 +85,23 @@ skips a step ordinal, or lists an adhesive no step applies will throw rather tha
 
 Add one in `packages/core/src/data/`, then run `pnpm test`. The audit does the rest.
 
+### Drafting a fold sequence offline
+
+An LLM can draft a Model's fold sequence for you, checked by the fold engine. This runs on your
+machine only, never in the app or the API:
+
+```sh
+ORIGAMI_AUTHORING_PROVIDER=anthropic ANTHROPIC_API_KEY=... \
+  pnpm --filter @origami/api author -- --reference steps.txt --out drafts/my-model.json
+```
+
+`steps.txt` is your reference, for example the Model's Step text. Both paths are relative to the folder you run the command in. The script asks for a draft, runs
+the engine, sends the exact error of the first failed fold back, and tries again (5 tries at most,
+`--max-tries N` to change it). The draft file is marked `needs-review`. It never replaces a file unless you pass `--force`. The
+script never writes into `packages/core/src` (a symlink to it counts too) and never marks a Model `validated`: fold the draft by hand first. Without
+`ORIGAMI_AUTHORING_PROVIDER=anthropic` the script calls no LLM. `ANTHROPIC_MODEL` picks the model,
+as for the tutor.
+
 ## What is not here yet
 
 Camera inspection of your paper, original model generation, accounts, saved builds, and image assets.
