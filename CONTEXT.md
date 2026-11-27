@@ -63,6 +63,21 @@ The **grounding guard** checks a candidate Explanation against the Model and rep
 **grounding violations**. An ungrounded Explanation is discarded and replaced by a heuristic one, and
 the discarded attempt is reported rather than hidden.
 
+**Fold engine** — the package (`@origami/fold`) that holds a virtual sheet of paper and checks folds. It
+checks folds; it never invents them (ADR-0004).
+
+**Fold sequence** — a Model's exact folds, one group of actions per Step, keyed by Step id, written in
+the Fold language. Optional; a Model without one works as before.
+
+**Fold language** — the JSON form of a Fold sequence, by named points (corners A to D, edge midpoints,
+the centre O, crease intersections) and named creases. No raw coordinates.
+
+**Folded state** — the crease pattern, where every part of the paper sits, and the layer order after a
+Step.
+
+**Fold check** — one check the engine runs on a fold (references, axiom, no-stretch, Maekawa, Kawasaki,
+layers, grounded), with its named error.
+
 ## Words to avoid
 
 - **"pattern"** or **"tutorial"** for a Model — say Model.

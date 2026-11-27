@@ -1,5 +1,6 @@
 import type { ModelInput } from '../types'
 import { arrow, crease, cutLine, diagram, dot, label, line, mountain, poly, rotateArrow, shade, sheet, valley } from '../diagram'
+import { CRANE_FOLD_SEQUENCE } from './crane-folds'
 import { CUT_CHECKS, FOLD_ONLY_CHECKS, GLUE_CHECKS, seedProvenance, step, validated } from './helpers'
 
 const easyFoldedBird: ModelInput = {
@@ -253,6 +254,7 @@ const origamiCrane: ModelInput = {
   tags: ['classic', 'bird base', 'symbolic', 'no-tools', 'no-glue', 'one-sheet'],
   provenance: seedProvenance('Traditional orizuru, public domain', 'Public domain', 'Standard 14-step teaching sequence.'),
   validation: validated(FOLD_ONLY_CHECKS),
+  foldSequence: CRANE_FOLD_SEQUENCE,
 }
 
 const flappingBird: ModelInput = {

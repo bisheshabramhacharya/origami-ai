@@ -1,3 +1,4 @@
+import { FoldSequenceSchema } from '@origami/fold'
 import { z } from 'zod'
 
 export const TechniqueSchema = z.enum([
@@ -233,6 +234,8 @@ export const ModelSchema = z.object({
   tags: z.array(z.string()).default([]),
   provenance: ProvenanceSchema,
   validation: ValidationSchema,
+  /** The exact folds for some or all Steps, keyed by Step id, in the fold language. */
+  foldSequence: FoldSequenceSchema.optional(),
 })
 export type Model = z.infer<typeof ModelSchema>
 export type ModelInput = z.input<typeof ModelSchema>
