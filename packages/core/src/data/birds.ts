@@ -231,7 +231,7 @@ const origamiCrane: ModelInput = {
       id: 'crane-13',
       ordinal: 13,
       title: 'Head',
-      instruction: 'Fold the tip of the neck down sharply to make the head, then open the wings out to the sides.',
+      instruction: 'Fold the tip of the neck down sharply to make the head. Fold each wing down along a level line, then open the wings out to the sides.',
       operations: ['reverse-fold', 'valley-fold', 'turn-over', 'open', 'shape'],
       diagram: diagram('Beak, then open the wings', poly(50, 18, 76, 50, 50, 82, 24, 50), valley(34, 26, 40, 34), arrow(38, 30, 44, 36), line(20, 40, 8, 40), line(80, 40, 92, 40)),
       checkpoints: ['The head is a sharp downward angle', 'Both wings sit level'],

@@ -195,7 +195,7 @@ export const CRANE_FOLD_SEQUENCE: FoldSequenceInput = {
     },
     {
       step: 'crane-14',
-      note: 'The engine keeps the body flat. You round it by hand: pull the wings apart gently and blow into the hole underneath.',
+      note: 'The 3D view keeps the body flat. You round it by hand: pull the wings apart gently and blow into the hole underneath.',
       actions: [],
     },
   ],

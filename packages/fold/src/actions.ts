@@ -11,6 +11,7 @@ import {
   centroid,
   clipHalfPlane,
   dist2,
+  dist3,
   intersectLines,
   lerp2,
   lerp3,
@@ -934,8 +935,18 @@ function openFlaps(state: FoldState, action: Open): FoldState {
   const names = action.creases
   const what = names.join(', ')
   for (const n of names) {
-    if (creaseEdges(state, n).length === 0) fail('references', `Crease "${n}" does not exist.`, n)
-    if (!state.folds.some((r) => r.name === n)) fail('references', `Crease "${n}" is not folded now, so it cannot be opened.`, n)
+    const edges = creaseEdges(state, n)
+    if (edges.length === 0) fail('references', `Crease "${n}" does not exist.`, n)
+    if (!state.folds.some((r) => r.name === n)) {
+      const folded = edges.some((ei) => state.edges[ei]!.assignment === 'V' || state.edges[ei]!.assignment === 'M')
+      fail(
+        'references',
+        folded
+          ? `Crease "${n}" was folded as part of a compound fold, not as a fold of its own, so it cannot be opened by itself.`
+          : `Crease "${n}" is not folded now, so it cannot be opened.`,
+        n,
+      )
+    }
   }
   // Faces that none of these folds moved keep their place.
   const moved = state.folds.filter((r) => names.includes(r.name)).flatMap((r) => r.moved)
@@ -943,9 +954,14 @@ function openFlaps(state: FoldState, action: Open): FoldState {
   const still = all.filter((f) => !inAny(moved, centroid(flatPolygon(state, f))))
   if (still.length === 0) fail('axiom', `Opening ${what} would leave no paper in its place.`, what)
   const root = largestFace(state, still)
+  // An edge can carry one of these creases and a later fold. Turn it only when no other fold that stays carries it.
+  const staying = new Set(state.folds.map((r) => r.name).filter((n) => !names.includes(n)))
+  const wasFlat = isFlat(state)
+  const start = cloneState(state)
   let hinges = 0
   for (const edge of state.edges) {
     if (!edge.creases.some((c) => names.includes(c))) continue
+    if (edge.creases.some((c) => staying.has(c))) continue
     if (edge.assignment !== 'V' && edge.assignment !== 'M') continue
     edge.foldAngle = (edge.assignment === 'V' ? 1 : -1) * action.degrees
     hinges += 1
@@ -953,6 +969,7 @@ function openFlaps(state: FoldState, action: Open): FoldState {
   if (hinges === 0) fail('axiom', `The creases ${what} hold no folded paper to open.`, what)
   const before = state.above.map((p) => [...p] as [number, number])
   rebuildFromAngles(state, root, what)
+  if (wasFlat) assertOpenNotBlocked(start, state, root, what)
   if (isFlat(state)) {
     const result = solveLayers(state, { prefer: before })
     if (!result.ok) fail('layers', `After opening ${what}, the layers would cross: ${result.message}`, what)
@@ -960,4 +977,36 @@ function openFlaps(state: FoldState, action: Open): FoldState {
     refreshSides(state)
   }
   return state
+}
+
+/**
+ * A flap that opens from a flat model turns toward the viewer or away from the table. It cannot pass
+ * through a layer that stays on that side of it. The side is read halfway through the turn, so a
+ * flap that opens all the way back to flat is checked too.
+ */
+function assertOpenNotBlocked(start: FoldState, end: FoldState, root: number, what: string) {
+  const mid = cloneState(end)
+  mid.edges.forEach((edge, i) => {
+    edge.foldAngle = (start.edges[i]!.foldAngle + end.edges[i]!.foldAngle) / 2
+  })
+  const halfway = geometryFromAngles(mid, root).folded
+  const movedFaces = start.faces
+    .map((_, f) => f)
+    .filter((f) => start.faces[f]!.some((vi) => dist3(start.folded[vi]!, halfway[vi]!) > 1e-6))
+  const moving = new Set(movedFaces)
+  const order = orderLookup(start)
+  for (const m of movedFaces) {
+    const z = start.faces[m]!.reduce((sum, vi) => sum + halfway[vi]!.z - start.folded[vi]!.z, 0) / start.faces[m]!.length
+    if (Math.abs(z) < 1e-6) continue
+    const up = z > 0
+    const pm = foldedPolygon(start, m)
+    for (let f = 0; f < start.faces.length; f += 1) {
+      if (moving.has(f)) continue
+      const rel = order(f, m)
+      if ((up && rel === 1) || (!up && rel === -1)) {
+        if (overlapArea(pm, foldedPolygon(start, f)) <= AREA_TOLERANCE_MM2) continue
+        fail('layers', `Opening ${what} would turn paper through a layer that stays ${up ? 'on top of' : 'under'} it.`, what)
+      }
+    }
+  }
 }
