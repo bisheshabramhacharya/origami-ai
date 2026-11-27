@@ -17,7 +17,8 @@ export interface ActionMotion {
   stateAt(t: number): FoldState
 }
 
-const SAMPLES = [0.25, 0.5, 0.75]
+/** The times at which a motion is checked for exactness, and at which a view's frame is measured. */
+export const MOTION_SAMPLES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 const TOLERANCE = 1e-3
 
 /** The rotation part of an affine map as a unit quaternion [w, x, y, z] with w >= 0. */
@@ -47,12 +48,22 @@ const transpose = (m: number[]) => [m[0]!, m[3]!, m[6]!, m[1]!, m[4]!, m[7]!, m[
  * The rigid path of one face from map `a` to map `b`: it turns about one axis through its centre
  * while the centre moves in a straight line.
  */
-function rigidPath(a: Affine3, b: Affine3, centreFlat: Vec3): (t: number) => Affine3 {
-  const r = compose3({ m: b.m, t: v3(0, 0, 0) }, { m: transpose(a.m), t: v3(0, 0, 0) }).m
-  const [w, x, y, z] = quaternion(r)
-  const half = Math.acos(Math.min(1, w))
-  const s = Math.sin(half)
-  const axis = s < 1e-12 ? v3(0, 0, 1) : v3(x / s, y / s, z / s)
+function rigidPath(a: Affine3, b: Affine3, centreFlat: Vec3, turnDegrees?: number): (t: number) => Affine3 {
+  let half: number
+  let axis: Vec3
+  if (turnDegrees !== undefined) {
+    // A rotation on the table: turn about the viewer's axis the way and the amount the action says,
+    // which can be more than half a turn.
+    half = (turnDegrees * Math.PI) / 360
+    axis = v3(0, 0, 1)
+  } else {
+    // Otherwise the shortest turn from one map to the other.
+    const r = compose3({ m: b.m, t: v3(0, 0, 0) }, { m: transpose(a.m), t: v3(0, 0, 0) }).m
+    const [w, x, y, z] = quaternion(r)
+    half = Math.acos(Math.min(1, w))
+    const s = Math.sin(half)
+    axis = s < 1e-12 ? v3(0, 0, 1) : v3(x / s, y / s, z / s)
+  }
   const c0 = apply3(a, centreFlat)
   const c1 = apply3(b, centreFlat)
   return (t) => {
@@ -83,7 +94,15 @@ const maxDistance = (a: Vec3[], b: Vec3[]) => a.reduce((m, p, i) => Math.max(m, 
  * The motion of one action. Both states come from the engine: `after` is `before` with the action
  * applied. The motion runs on the faces of `after`, so a crease the action makes is there from the start.
  */
-export function actionMotion(before: FoldState, after: FoldState, kind: FoldKind): ActionMotion {
+export function actionMotion(
+  before: FoldState,
+  after: FoldState,
+  kind: FoldKind,
+  options: {
+    /** For a `rotate` action: its degrees, counter-clockwise as the viewer sees it, so a turn of more than 180° plays the long way. */
+    turnDegrees?: number
+  } = {},
+): ActionMotion {
   const startPositions = after.vertices.map((p, vi) => foldedPositionOf(before, p) ?? after.folded[vi]!)
   const startAngles = anglesBefore(before, after)
   const endAngles = after.edges.map((e) => e.foldAngle)
@@ -102,6 +121,7 @@ export function actionMotion(before: FoldState, after: FoldState, kind: FoldKind
     affineFromFaceMap(faceMap(start, root).toFolded),
     affineFromFaceMap(faceMap(after, root).toFolded),
     v3(c.x, c.y, 0),
+    options.turnDegrees,
   )
 
   const anglesAt = (t: number) => startAngles.map((a, i) => a + (endAngles[i]! - a) * t)
@@ -116,7 +136,7 @@ export function actionMotion(before: FoldState, after: FoldState, kind: FoldKind
   const exact =
     maxDistance(rigidAt(0).result.folded, startPositions) < TOLERANCE &&
     maxDistance(rigidAt(1).result.folded, after.folded) < TOLERANCE &&
-    SAMPLES.every((t) => rigidAt(t).result.mismatch < TOLERANCE)
+    MOTION_SAMPLES.every((t) => rigidAt(t).result.mismatch < TOLERANCE)
 
   return {
     kind,
