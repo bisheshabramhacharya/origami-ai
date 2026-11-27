@@ -5,7 +5,7 @@ import { DiagramView } from './DiagramView'
 
 const Step3D = lazy(() => import('./three/Step3D'))
 
-/** Plain data check, so the main bundle never loads the fold engine. */
+/** Plain data check, so the fold engine runs only in the lazy 3D chunk. */
 function stepHasFolds(model: Model, step: Step): boolean {
   return model.foldSequence?.steps.some((s) => s.step === step.id) ?? false
 }
@@ -50,7 +50,7 @@ export function StepVisual({ model, step }: { model: Model; step: Step }) {
         </div>
       </div>
       {show3D ? (
-        <Fallback fallback={diagram}>
+        <Fallback key={step.id} fallback={diagram}>
           <Suspense fallback={<div className="aspect-square w-full animate-pulse rounded-xl bg-paper-200" />}>
             <div className="aspect-square w-full">
               <Step3D model={model} stepId={step.id} stepLabel={`Step ${step.ordinal}, ${step.title}`} />
