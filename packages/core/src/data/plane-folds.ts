@@ -9,6 +9,9 @@ const meet = (crease: string, a: string, b: string) => ({ intersect: [{ crease }
 /** The wing line goes through the nose and halves the 22.5° between the slanted edge and the centre crease. */
 export const DART_WING_LINE_DEGREES = 11.25
 
+/** The fold angle of each wing hinge on the finished dart: 90 puts each wing at a right angle to the body. */
+export const DART_WING_DEGREES = 90
+
 export const DART_FOLD_SEQUENCE: FoldSequenceInput = {
   paper: { widthMm: 215.9, heightMm: 279.4 },
   steps: [
@@ -58,6 +61,10 @@ export const DART_FOLD_SEQUENCE: FoldSequenceInput = {
           note: 'The other wing to match.',
         },
       ],
+    },
+    {
+      step: 'dart-6',
+      actions: [{ kind: 'open', creases: ['w1', 'w2'], degrees: DART_WING_DEGREES, note: 'Both wings out at a right angle to the body.' }],
     },
   ],
 }

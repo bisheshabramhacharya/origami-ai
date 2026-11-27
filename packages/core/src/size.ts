@@ -23,5 +23,17 @@ export function finishedSizeLabel(model: Model, sheetMm?: number): string | null
   const sheet = sheetMm ?? model.finishedSize.fromSheetMm
   if (!Number.isFinite(sheet) || sheet <= 0) throw new RangeError(`The sheet size must be more than 0 mm, not ${sheet}.`)
   const size = finishedSizeFor(model.finishedSize, sheet)
-  return `About ${cm(size.widthMm)} cm wide from a ${sheetCm(size.fromSheetMm)} cm sheet`
+  const wide = `About ${cm(size.widthMm)} cm wide`
+  switch (model.paper.shape) {
+    case 'a4':
+    case 'letter':
+      // A named sheet (for example US Letter) goes by its name unless another sheet was asked for.
+      return sheetMm === undefined ? `${wide} from a ${model.paper.size} sheet` : `${wide} from a sheet ${sheetCm(size.fromSheetMm)} cm long`
+    case 'rectangle':
+      return `${wide} from a sheet ${sheetCm(size.fromSheetMm)} cm long`
+    case 'circle':
+      return `${wide} from a circle ${sheetCm(size.fromSheetMm)} cm across`
+    case 'square':
+      return `${wide} from a ${sheetCm(size.fromSheetMm)} cm sheet`
+  }
 }
