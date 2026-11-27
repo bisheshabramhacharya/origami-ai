@@ -8,21 +8,23 @@ export const PAPER_COLOUR = '#d9534f'
 export const PAPER_BACK = '#fbfaf6'
 const EDGE_COLOUR = { valley: '#2563eb', mountain: '#dc2626', crease: '#9ca3af' } as const
 
-function Controls({ target }: { target: THREE.Vector3 }) {
+function Controls({ target, home, resetKey }: { target: THREE.Vector3; home: THREE.Vector3; resetKey: number }) {
   const { camera, gl, invalidate } = useThree()
   useEffect(() => {
     const controls = new OrbitControls(camera, gl.domElement)
+    camera.position.copy(home)
     controls.target.copy(target)
     controls.enablePan = false
     controls.enableDamping = false
     const redraw = () => invalidate()
     controls.addEventListener('change', redraw)
     controls.update()
+    invalidate()
     return () => {
       controls.removeEventListener('change', redraw)
       controls.dispose()
     }
-  }, [camera, gl, target, invalidate])
+  }, [camera, gl, target, home, invalidate, resetKey])
   return null
 }
 
@@ -100,28 +102,38 @@ function Paper({ mesh }: { mesh: DisplayMesh }) {
   )
 }
 
-/** Draws a display mesh from the fold engine. No geometry is worked out here. */
-export function FoldScene({ mesh, label }: { mesh: DisplayMesh; label: string }) {
-  const { box } = mesh
+export type SceneBox = DisplayMesh['box']
+
+/**
+ * Draws a display mesh from the fold engine. No geometry is worked out here. `frame` is the box the
+ * camera frames (by default the mesh's own); a player passes one box for a whole Step so the view
+ * does not jump. A new `resetKey` puts the camera back on the learner's side of the table.
+ */
+export function FoldScene({ mesh, label, frame, resetKey = 0 }: { mesh: DisplayMesh; label: string; frame?: SceneBox; resetKey?: number }) {
+  const box = frame ?? mesh.box
   const centre = useMemo(
     () => new THREE.Vector3((box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, (box.minZ + box.maxZ) / 2),
     [box.minX, box.maxX, box.minY, box.maxY, box.minZ, box.maxZ],
   )
   const size = Math.max(box.maxX - box.minX, box.maxY - box.minY, box.maxZ - box.minZ, 10)
   const distance = size * 1.9
+  const home = useMemo(
+    () => new THREE.Vector3(centre.x, centre.y - distance * 0.35, centre.z + distance),
+    [centre, distance],
+  )
   return (
     <div role="img" aria-label={label} className="h-full w-full touch-none">
       <Canvas
         frameloop="demand"
         dpr={[1, 2]}
-        camera={{ position: [centre.x, centre.y - distance * 0.35, centre.z + distance], fov: 35, near: 1, far: size * 20 }}
+        camera={{ position: [home.x, home.y, home.z], fov: 35, near: 1, far: size * 20 }}
         gl={{ antialias: true, preserveDrawingBuffer: true }}
       >
         <ambientLight intensity={1.6} />
         <directionalLight position={[centre.x - size, centre.y + size, centre.z + size * 2]} intensity={1.4} />
         <directionalLight position={[centre.x + size, centre.y - size, centre.z - size * 2]} intensity={0.8} />
         <Paper mesh={mesh} />
-        <Controls target={centre} />
+        <Controls target={centre} home={home} resetKey={resetKey} />
       </Canvas>
     </div>
   )
