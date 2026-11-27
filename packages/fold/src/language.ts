@@ -166,6 +166,8 @@ export const FoldStepSchema = z
   .object({
     step: z.string().min(1),
     actions: z.array(FoldActionSchema),
+    /** A short note for the learner about this Step's end state, for example what is shaped by hand. */
+    note: z.string().min(1).optional(),
   })
   .strict()
 export type FoldStep = z.infer<typeof FoldStepSchema>

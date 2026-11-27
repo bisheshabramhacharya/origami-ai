@@ -1,4 +1,4 @@
-import { type ExplanationLevel, type Model, nextLevel } from '@origami/core'
+import { type ExplanationLevel, type Model, finishedSizeLabel, nextLevel } from '@origami/core'
 import { useEffect, useState } from 'react'
 import { explain, type ExplainResult } from '../lib/api'
 import { Badge } from './Badge'
@@ -62,6 +62,7 @@ export function BuildPanel({ model, onBack }: { model: Model; onBack: () => void
   const step = model.steps[stepIndex]
   const isLast = stepIndex === model.steps.length - 1
   const progress = ((stepIndex + 1) / model.steps.length) * 100
+  const sizeLabel = finishedSizeLabel(model)
 
   useEffect(() => {
     setResult(null)
@@ -156,9 +157,10 @@ export function BuildPanel({ model, onBack }: { model: Model; onBack: () => void
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge>{model.paper.sheets === 1 ? '1 sheet' : `${model.paper.sheets} sheets`}</Badge>
           <Badge>{timeLabel(model.timeMinutes)}</Badge>
+          {sizeLabel ? <Badge>{sizeLabel}</Badge> : null}
         </div>
       </div>
 

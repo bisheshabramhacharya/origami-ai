@@ -216,6 +216,19 @@ export const ValidationSchema = z.object({
 })
 export type Validation = z.infer<typeof ValidationSchema>
 
+export const FinishedSizeSchema = z
+  .object({
+    /** The side of the square sheet (or the long side of a rectangle) these sizes are for, in mm. */
+    fromSheetMm: z.number().positive(),
+    /** Side to side as the learner sees it, for a bird its wingspan. */
+    widthMm: z.number().positive(),
+    /** Front to back, for a bird from the tip of the head or neck to the tip of the tail. */
+    lengthMm: z.number().positive(),
+    heightMm: z.number().positive(),
+  })
+  .strict()
+export type FinishedSize = z.infer<typeof FinishedSizeSchema>
+
 export const ModelSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -236,6 +249,8 @@ export const ModelSchema = z.object({
   validation: ValidationSchema,
   /** The exact folds for some or all Steps, keyed by Step id, in the fold language. */
   foldSequence: FoldSequenceSchema.optional(),
+  /** The size of the finished model from a stated sheet. It scales linearly with the sheet. */
+  finishedSize: FinishedSizeSchema.optional(),
 })
 export type Model = z.infer<typeof ModelSchema>
 export type ModelInput = z.input<typeof ModelSchema>
