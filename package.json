@@ -10,8 +10,8 @@
     "dev:api": "pnpm --filter @origami/api dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm --filter @origami/core test",
-    "test:watch": "pnpm --filter @origami/core test:watch",
+    "test": "pnpm --filter @origami/fold --filter @origami/core test",
+    "test:watch": "pnpm --filter @origami/core --filter @origami/fold test:watch",
     "lint": "pnpm -r lint"
   },
   "devDependencies": {

@@ -2,8 +2,8 @@ import { type ExplanationLevel, type Model, nextLevel } from '@origami/core'
 import { useEffect, useState } from 'react'
 import { explain, type ExplainResult } from '../lib/api'
 import { Badge } from './Badge'
-import { DiagramView } from './DiagramView'
 import { ModelMeta } from './ModelMeta'
+import { StepVisual } from './StepVisual'
 import { StuckPanel } from './StuckPanel'
 import { timeLabel } from '../lib/format'
 
@@ -190,12 +190,7 @@ export function BuildPanel({ model, onBack }: { model: Model; onBack: () => void
         <main className="space-y-5">
           <div className="card p-5">
             <div className="grid gap-6 sm:grid-cols-[minmax(0,15rem)_1fr]">
-              <div className="rounded-2xl bg-paper-100 p-4">
-                <DiagramView diagram={step.diagram} className="aspect-square w-full" />
-                {step.diagram.caption && (
-                  <p className="mt-3 text-center text-xs text-ink-faint">{step.diagram.caption}</p>
-                )}
-              </div>
+              <StepVisual model={model} step={step} />
 
               <div>
                 <div className="section-title mb-1">
