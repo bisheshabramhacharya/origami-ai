@@ -39,6 +39,13 @@ describe('fold sequences on Models', () => {
     expect(foldedStateBeforeStep(crane, 'crane-1')!.faces).toHaveLength(1)
   })
 
+  it('gives the square base for Step 5: a 75 mm diamond of 8 stacked triangles', () => {
+    const step5 = foldedStateForStep(crane, 'crane-5')!
+    expect(step5.faces).toHaveLength(8)
+    expect(area(outline(step5))).toBeCloseTo(75 * 75, 6)
+    expect(checkState(step5)).toEqual([])
+  })
+
   it('fails the audit for a Model whose fold sequence has an impossible fold', () => {
     const broken: Model = {
       ...crane,

@@ -32,5 +32,20 @@ export const CRANE_FOLD_SEQUENCE: FoldSequenceInput = {
         { kind: 'unfold', creases: ['b2'] },
       ],
     },
+    {
+      step: 'crane-5',
+      actions: [
+        {
+          kind: 'collapse',
+          note: 'The book creases fold as mountains and one diagonal as a valley; the other diagonal stays flat in the middle of each face.',
+          set: [
+            { crease: 'd2', assignment: 'V' },
+            { crease: 'b1', assignment: 'M' },
+            { crease: 'b2', assignment: 'M' },
+          ],
+        },
+        { kind: 'rotate', degrees: -135, note: 'Hinge (the centre O) at the top, open end down.' },
+      ],
+    },
   ],
 }
