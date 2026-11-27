@@ -47,5 +47,39 @@ export const CRANE_FOLD_SEQUENCE: FoldSequenceInput = {
         { kind: 'rotate', degrees: -135, note: 'Hinge (the centre O) at the top, open end down.' },
       ],
     },
+    {
+      step: 'crane-6',
+      actions: [
+        {
+          kind: 'valley',
+          name: 'k1',
+          line: { bringEdge: ['C', 'BC'], to: { crease: 'd1' } },
+          layers: 'top',
+          note: 'The front flap is the quarter of the sheet around corner C. Its lower right edge (C to BC) goes to the centre line.',
+        },
+      ],
+    },
+    {
+      step: 'crane-7',
+      actions: [{ kind: 'valley', name: 'k2', line: { bringEdge: ['C', 'CD'], to: { crease: 'd1' } }, layers: 'top' }],
+    },
+    {
+      step: 'crane-8',
+      actions: [
+        {
+          kind: 'valley',
+          name: 't1',
+          line: {
+            through: [
+              { intersect: [{ crease: 'k1' }, { crease: 'b1' }] },
+              { intersect: [{ crease: 'k2' }, { crease: 'b2' }] },
+            ],
+          },
+          moving: 'O',
+          note: 'The line joins the top ends of the two kite folds.',
+        },
+        { kind: 'unfold', last: 3 },
+      ],
+    },
   ],
 }
