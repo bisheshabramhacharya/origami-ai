@@ -120,3 +120,45 @@ describe('thin body and reverse folds (crane Steps 11 to 13)', () => {
     expect(Math.max(...where)).toBeLessThan(stack.length - 1)
   })
 })
+
+describe('reverse folds on a flap whose halves have different layer counts (review findings)', () => {
+  const paper = { widthMm: 150, heightMm: 150 }
+  const half = { kind: 'valley' as const, name: 'h', line: { bring: 'A', to: 'D' } }
+  // A hem along the bottom edge before folding in half, so it ends up inside, between the halves:
+  // the back half has 2 layers at the fold, the front half 1.
+  const hem = {
+    kind: 'valley' as const,
+    name: 's1',
+    line: { pivot: { along: ['D', 'A'] as [string, string], fraction: 10 / 150 }, angleDeg: 0 },
+    moving: 'D',
+  }
+  it('finds the spine where a crease crosses the fold line, not by halving the layer count', () => {
+    const result = runFoldSequence({
+      paper,
+      steps: [
+        { step: '1', actions: [hem, half] },
+        { step: '2', actions: [{ kind: 'inside-reverse', name: 'r', line: { pivot: 'O', angleDeg: -60 }, flap: 'C', moving: 'C' }] },
+      ],
+    })
+    expect(result.ok ? null : result.issue).toBeNull()
+    if (!result.ok) return
+    expect(checkState(result.final)).toEqual([])
+    // The spine (crease h) is the crease that turned from valley to mountain past the fold line.
+    const spineFlipped = result.final.edges.some((e) => e.creases.includes('h') && e.creases.length === 1 && e.assignment === 'M')
+    expect(spineFlipped).toBe(true)
+  })
+
+  it('says so when two creases could each be the spine', () => {
+    // A hem folded to the outside of the front: it could be reversed around the rest, or the rest around it.
+    const outsideHem = { ...hem, moving: 'A', layers: 'top' as const }
+    const result = runFoldSequence({
+      paper,
+      steps: [
+        { step: '1', actions: [half, outsideHem] },
+        { step: '2', actions: [{ kind: 'inside-reverse', name: 'r', line: { pivot: 'O', angleDeg: -60 }, flap: 'C', moving: 'C' }] },
+      ],
+    })
+    expect(result.ok ? null : result.issue).toMatchObject({ check: 'axiom', step: '2' })
+    if (!result.ok) expect(result.issue.message).toContain('more than one spine')
+  })
+})

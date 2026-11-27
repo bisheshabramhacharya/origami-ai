@@ -92,8 +92,7 @@ export function outline(state: FoldState): Vec2[] {
   return convexHull(state.folded.map((p) => v2(p.x, p.y)))
 }
 
-/** How many layers of paper are under a point of the viewer's plane. */
-/** The faces at a point of the folded model, from the top layer down. */
+/** The faces at a point of the folded model, from the top layer down. A point on an edge counts only the faces it is inside. */
 export function stackAt(state: FoldState, at: Vec2): number[] {
   const levels = faceLevels(state)
   return state.faces
@@ -102,6 +101,7 @@ export function stackAt(state: FoldState, at: Vec2): number[] {
     .sort((a, b) => levels[b]! - levels[a]!)
 }
 
+/** How many layers of paper are under a point of the viewer's plane. */
 export function layersAt(state: FoldState, at: Vec2): number {
   return state.faces.filter((_, f) => pointInConvex(foldedPolygon(state, f), at, true)).length
 }

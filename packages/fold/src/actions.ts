@@ -708,45 +708,124 @@ function reverseFold(state: FoldState, action: Reverse): FoldState {
   const order = orderLookup(state)
   const stack = [...new Set(hinges.filter((_, i) => spans[i]![0] < bestT - 1e-6 && spans[i]![1] > bestT + 1e-6).map((h) => h.moving))]
   stack.sort((x, y) => (order(x, y) === 1 ? -1 : order(y, x) === 1 ? 1 : 0))
-  if (stack.length < 2 || stack.length % 2 === 1) {
-    fail('axiom', `The flap at ${name} has ${stack.length} layers at the fold. A reverse fold needs a flap folded in half.`, name)
+  if (stack.length < 2) fail('axiom', `The flap at ${name} has ${stack.length} layer at the fold. A reverse fold needs a flap folded in half.`, name)
+
+  // The spine: where the flap's fold crosses the fold line. At a vertex on the line, a folded edge
+  // of the part that stays runs on into a folded edge of the part that moves, in one straight line on
+  // the sheet. The spine is that folded edge and the folded edges that continue it, end to end.
+  const folded = (ei: number) => {
+    const e = state.edges[ei]!
+    return (e.assignment === 'V' || e.assignment === 'M') && Math.abs(Math.abs(e.foldAngle) - 180) < 1e-6
   }
-  const half = new Map<number, 0 | 1>() // 0: front half, 1: back half
-  stack.forEach((f, i) => half.set(f, i < stack.length / 2 ? 0 : 1))
-  // The spine: a folded edge that joins a layer of the front half to a layer of the back half (after an
-  // earlier reverse fold it can be on the outside of the stack). Every folded edge on its flat line is spine.
-  let shared: number[] = []
-  for (const f of stack.slice(0, stack.length / 2)) {
-    for (const g of stack.slice(stack.length / 2)) {
-      const common = state.faces[f]!.filter((vi) => state.faces[g]!.includes(vi))
-      if (common.length === 2 && shared.length === 0) shared = common
+  const edgeFaces = (ei: number) => {
+    const [a, b] = state.edges[ei]!.vertices
+    return owners.get(edgeKey(a, b)) ?? []
+  }
+  const kindOf = (ei: number) => {
+    const fs = edgeFaces(ei)
+    if (fs.length !== 2) return 'other'
+    const m = fs.filter((f) => plan.moving.has(f)).length
+    return m === 2 ? 'moving' : m === 0 ? 'still' : 'other'
+  }
+  const byVertex = new Map<number, number[]>()
+  state.edges.forEach((e, ei) => {
+    if (!folded(ei)) return
+    for (const v of e.vertices) {
+      const list = byVertex.get(v)
+      if (list) list.push(ei)
+      else byVertex.set(v, [ei])
+    }
+  })
+  const direction = (ei: number, from: number) => {
+    const [a, b] = state.edges[ei]!.vertices
+    const to = a === from ? b : a
+    const p = state.vertices[from]!
+    const q = state.vertices[to]!
+    const d = Math.hypot(q.x - p.x, q.y - p.y)
+    return v2((q.x - p.x) / d, (q.y - p.y) / d)
+  }
+  const stackSet = new Set(stack)
+  // Every crease that crosses the fold line runs on from the part that stays into the part that moves.
+  // Each is a candidate spine; the spine is the one that splits the flap into two halves, one above the other.
+  const chains: Array<Set<number>> = []
+  for (const [v, list] of byVertex) {
+    if (vertexSide(state, plan.line, v) !== 0) continue
+    for (const mi of list) {
+      if (kindOf(mi) !== 'moving') continue
+      if (!edgeFaces(mi).some((f) => stackSet.has(f))) continue
+      if (chains.some((c) => c.has(mi))) continue
+      const dm = direction(mi, v)
+      const crosses = list.some((si) => {
+        if (kindOf(si) !== 'still') return false
+        const ds = direction(si, v)
+        return dm.x * ds.x + dm.y * ds.y < -1 + 1e-9
+      })
+      if (!crosses) continue
+      // Walk the crease away from the line, end to end along the same flat direction.
+      const chain = new Set<number>()
+      let edge = mi
+      let at = v
+      while (!chain.has(edge)) {
+        chain.add(edge)
+        const [a, b] = state.edges[edge]!.vertices
+        const next = a === at ? b : a
+        const d = direction(edge, at)
+        const onward = (byVertex.get(next) ?? []).find((ei) => {
+          if (ei === edge || kindOf(ei) !== 'moving') return false
+          const e2 = direction(ei, next)
+          return d.x * e2.x + d.y * e2.y > 1 - 1e-9
+        })
+        if (onward === undefined) break
+        at = next
+        edge = onward
+      }
+      chains.push(chain)
     }
   }
-  if (shared.length !== 2) fail('axiom', `The two halves of the flap at ${name} are not joined by a fold, so there is no spine to reverse.`, name)
-  const spineLine = lineThrough(state.vertices[shared[0]!]!, state.vertices[shared[1]!]!)
-  const isSpine = (u: number, w: number) =>
-    Math.abs(sideOf(spineLine, state.vertices[u]!)) < 1e-6 && Math.abs(sideOf(spineLine, state.vertices[w]!)) < 1e-6
-  // Spread the halves over every face that moves: crossing the spine changes half, crossing any other edge does not.
-  const queue = [...half.keys()]
-  while (queue.length > 0) {
-    const f = queue.shift()!
-    const face = state.faces[f]!
-    for (let i = 0; i < face.length; i += 1) {
-      const u = face[i]!
-      const w = face[(i + 1) % face.length]!
-      for (const g of owners.get(edgeKey(u, w)) ?? []) {
-        if (g === f || !plan.moving.has(g)) continue
-        const want = (isSpine(u, w) ? 1 - half.get(f)! : half.get(f)!) as 0 | 1
-        const has = half.get(g)
-        if (has === undefined) {
-          half.set(g, want)
-          queue.push(g)
-        } else if (has !== want) {
-          fail('axiom', `The flap at ${name} is not one flap folded in half along a spine.`, name)
+  // Spread two halves over every face that moves: crossing the spine changes half, crossing any other edge
+  // does not. Null when the chain does not split the flap into two halves, one above the other at the fold.
+  const halvesFor = (chain: Set<number>): Map<number, 0 | 1> | null => {
+    const spineKeys = new Set([...chain].map((ei) => edgeKey(...state.edges[ei]!.vertices)))
+    const half = new Map<number, 0 | 1>()
+    half.set(stack[0]!, 0)
+    const queue = [stack[0]!]
+    while (queue.length > 0) {
+      const f = queue.shift()!
+      const face = state.faces[f]!
+      for (let i = 0; i < face.length; i += 1) {
+        const key = edgeKey(face[i]!, face[(i + 1) % face.length]!)
+        for (const g of owners.get(key) ?? []) {
+          if (g === f || !plan.moving.has(g)) continue
+          const want = (spineKeys.has(key) ? 1 - half.get(f)! : half.get(f)!) as 0 | 1
+          const has = half.get(g)
+          if (has === undefined) {
+            half.set(g, want)
+            queue.push(g)
+          } else if (has !== want) return null
         }
       }
     }
+    const halves = stack.map((f) => half.get(f))
+    const split = halves.findIndex((h) => h !== 0)
+    if (split < 0 || halves.slice(split).some((h) => h !== 1)) return null
+    return half
   }
+  const found: Array<Map<number, 0 | 1>> = []
+  for (const chain of chains) {
+    const h = halvesFor(chain)
+    if (h && !found.some((o) => [...h].every(([f, x]) => o.get(f) === x))) found.push(h)
+  }
+  if (found.length === 0) {
+    fail('axiom', `The flap at ${name} is not one flap folded in half along a spine, so there is nothing to reverse.`, name)
+  }
+  // A thin fold or a hem on the flap can also split it one above the other. The spine is taken to be
+  // the crease that splits the layers at the fold most evenly (see ADR 0004 for where this falls short).
+  const unevenness = (h: Map<number, 0 | 1>) => Math.abs(stack.filter((f) => h.get(f) === 0).length * 2 - stack.length)
+  found.sort((a, b) => unevenness(a) - unevenness(b))
+  if (found.length > 1 && unevenness(found[0]!) === unevenness(found[1]!)) {
+    fail('axiom', `The flap at ${name} can open along more than one spine. Fold a flap with one spine.`, name)
+  }
+  const half = found[0]!
   for (const f of plan.moving) if (!half.has(f)) fail('axiom', `Part of the flap at ${name} is not joined to the rest.`, name)
 
   // Faces that stay but belong to the flap take the half of the face across their hinge.
@@ -779,13 +858,28 @@ function reverseFold(state: FoldState, action: Reverse): FoldState {
   // Where in the old order the flap opens: between the lowest layer of its front half and the highest
   // layer of its back half. Other layers that stay are tried on the same side of the opening as before.
   const levelsBefore = faceLevels(state)
-  const opening = (levelsBefore[stack[stack.length / 2 - 1]!]! + levelsBefore[stack[stack.length / 2]!]!) / 2
+  const lastFront = stack.filter((f) => half.get(f) === 0).at(-1)!
+  const firstBack = stack.find((f) => half.get(f) === 1)!
+  const opening = (levelsBefore[lastFront]! + levelsBefore[firstBack]!) / 2
   rotateFaces(state, plan.moving, plan.line, Math.PI)
   recordFold(state, name, plan.moving)
 
   // Layer order: each half turns over on its own; the halves keep their order; the part that moves
   // goes between the halves (inside) or around them (outside).
   const was = new Set(before.map(([u, l]) => `${u},${l}`))
+  // A layer outside the flap (a wing, the body) that lay above the flap stays above all of it, and
+  // one that lay below stays below. Only a layer with no known place uses the old levels as a hint.
+  const outsideSide = new Map<number, 'above' | 'below' | null>()
+  for (let s = 0; s < state.faces.length; s += 1) {
+    if (plan.moving.has(s) || stillHalf.has(s)) continue
+    let above = false
+    let below = false
+    for (const m of plan.moving) {
+      if (was.has(`${s},${m}`)) above = true
+      if (was.has(`${m},${s}`)) below = true
+    }
+    outsideSide.set(s, above && !below ? 'above' : below && !above ? 'below' : null)
+  }
   const fixed: Array<[number, number]> = []
   const prefer: Array<[number, number]> = []
   const n = state.faces.length
@@ -798,7 +892,10 @@ function reverseFold(state: FoldState, action: Reverse): FoldState {
       if (am !== bm) {
         const m = am ? a : b
         const s = am ? b : a
-        if (!stillHalf.has(s)) {
+        const side = outsideSide.get(s)
+        if (side === 'above') fixed.push([s, m])
+        else if (side === 'below') fixed.push([m, s])
+        else if (side === null) {
           if (inside) prefer.push((levelsBefore[s] ?? 0) > opening ? [s, m] : [m, s])
           else prefer.push(half.get(m) === 0 ? [m, s] : [s, m])
         }

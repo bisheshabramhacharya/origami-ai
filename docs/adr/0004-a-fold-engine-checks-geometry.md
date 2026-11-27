@@ -41,9 +41,17 @@ every flat vertex, and a layer order with no crossing layers.
   are in a chunk that loads on demand.
 - Reverse folds cut a flap that is folded in half along a spine. Each half of the part that moves turns
   over on its own, and the spine of that part turns the other way. Inside and outside reverse folds on
-  the same line differ only in layer order, and the paper allows only one of them: when the turned spine
-  lands inside the flap, only an inside reverse fold is possible; when it lands beyond the spine, only an
-  outside one. The engine gives a layer-order error for the other, so a wrong kind cannot pass.
+  the same line differ only in layer order, and the paper usually allows only one of them: when the turned
+  spine lands inside the flap, only an inside reverse fold is possible; when it lands beyond the spine, only
+  an outside one. The engine gives a layer-order error for the other, so a wrong kind cannot pass. When the
+  line is at right angles to the spine, the turned spine lands back on itself and both kinds are possible.
+- The spine of a reverse fold is a crease that crosses the fold line and splits the flap into two halves,
+  one above the other at the fold. A thin fold or a hem can also do that. The engine takes the crease that
+  splits the layers most evenly, and gives an error when two creases tie. A flap whose real spine splits
+  the layers less evenly than a hem does (for example three layers in front and one behind) is read wrong
+  and fails; it needs a reverse fold given by its spine crease, which the language does not have yet.
+- Layers outside the flap (a wing, the body) keep their side: one that lay above any part of the flap
+  stays above all of the part that moves, and one that lay below stays below.
 - Lines that diagrams draw by eye (the crane's neck, its head) are written as a line through a named
   point at an angle, and a point can be a fraction of the way between two named points. These are the
   only places a number stands for a position.
