@@ -13,6 +13,7 @@ export {
   foldedPositionOf,
 } from './state'
 export type { Vec2, Vec3 } from './geometry'
+export { type ActionMotion, actionMotion } from './motion'
 export { applyAction, type ActionResult } from './actions'
 export { checkState, checkNoStretch, checkMaekawa, checkKawasaki, checkLayers } from './checks'
 export {

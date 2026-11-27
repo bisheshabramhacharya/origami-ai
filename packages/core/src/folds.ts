@@ -1,4 +1,14 @@
-import { type FoldedStep, type FoldState, type SequenceResult, describeIssue, runFoldSequence } from '@origami/fold'
+import {
+  type ActionMotion,
+  type DisplayMesh,
+  type FoldedStep,
+  type FoldState,
+  type SequenceResult,
+  actionMotion,
+  describeIssue,
+  displayMesh,
+  runFoldSequence,
+} from '@origami/fold'
 import { parseLibrary } from './library'
 import type { LibraryIssue, Model } from './types'
 
@@ -43,6 +53,54 @@ export function foldedStateBeforeStep(model: Model, stepId: string): FoldState |
   const index = result.steps.findIndex((s) => s.step === stepId)
   if (index < 0) return null
   return index === 0 ? result.sheet : result.steps[index - 1]!.state
+}
+
+/** What the 3D player needs for one Step: the paper before it, and the motion of each action in order. */
+export interface StepPlayback {
+  stepId: string
+  before: FoldState
+  after: FoldState
+  /** One per action. A Step with no actions (for example "colour side up") has none. */
+  motions: ActionMotion[]
+  /** A box that holds the paper all through the Step, so a view can frame it once. */
+  frame: DisplayMesh['box']
+}
+
+const playbackCache = new WeakMap<Model, Map<string, StepPlayback | null>>()
+
+/** The playback of a Step, or null when the Model has no fold sequence for it. Cached per Model. */
+export function stepPlayback(model: Model, stepId: string): StepPlayback | null {
+  let byStep = playbackCache.get(model)
+  if (!byStep) {
+    byStep = new Map()
+    playbackCache.set(model, byStep)
+  }
+  if (byStep.has(stepId)) return byStep.get(stepId)!
+  const before = foldedStateBeforeStep(model, stepId)
+  const step = foldedStates(model).get(stepId)
+  let playback: StepPlayback | null = null
+  if (before && step) {
+    const motions: ActionMotion[] = []
+    let from = before
+    step.actionStates.forEach((state, i) => {
+      motions.push(actionMotion(from, state, step.kinds[i]!))
+      from = state
+    })
+    const boxes = [before, step.state, ...motions.flatMap((m) => [m.stateAt(0.25), m.stateAt(0.5), m.stateAt(0.75)])].map(
+      (state) => displayMesh(state).box,
+    )
+    const frame = {
+      minX: Math.min(...boxes.map((b) => b.minX)),
+      minY: Math.min(...boxes.map((b) => b.minY)),
+      minZ: Math.min(...boxes.map((b) => b.minZ)),
+      maxX: Math.max(...boxes.map((b) => b.maxX)),
+      maxY: Math.max(...boxes.map((b) => b.maxY)),
+      maxZ: Math.max(...boxes.map((b) => b.maxZ)),
+    }
+    playback = { stepId, before, after: step.state, motions, frame }
+  }
+  byStep.set(stepId, playback)
+  return playback
 }
 
 /**
