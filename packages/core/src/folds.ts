@@ -1,6 +1,7 @@
 import {
   type ActionMotion,
   type DisplayMesh,
+  type FoldKind,
   type FoldedStep,
   type FoldState,
   type SequenceResult,
@@ -10,7 +11,7 @@ import {
   runFoldSequence,
 } from '@origami/fold'
 import { parseLibrary } from './library'
-import type { LibraryIssue, Model } from './types'
+import type { LibraryIssue, Model, Operation } from './types'
 
 const cache = new WeakMap<Model, SequenceResult>()
 
@@ -104,6 +105,24 @@ export function stepPlayback(model: Model, stepId: string): StepPlayback | null 
 }
 
 /**
+ * The Operation a Step must declare for each kind of fold the engine sees it do. Written once here;
+ * the Library audit uses it to keep each Step's declared Operations true to its folds.
+ */
+export const FOLD_KIND_OPERATIONS: Record<FoldKind, Operation> = {
+  valley: 'valley-fold',
+  mountain: 'mountain-fold',
+  collapse: 'collapse',
+  squash: 'squash-fold',
+  petal: 'petal-fold',
+  'inside-reverse': 'reverse-fold',
+  'outside-reverse': 'reverse-fold',
+  unfold: 'unfold',
+  'turn-over': 'turn-over',
+  rotate: 'rotate',
+  open: 'open',
+}
+
+/**
  * The fold part of the Library audit: the fold sequence names real Steps in order, and every fold
  * in it passes the fold engine's checks. Runs in CI (see `auditLibrary`), not at page load.
  */
@@ -124,6 +143,19 @@ export function auditFoldSequence(model: Model): LibraryIssue[] {
   }
   const result = foldModel(model)
   if (result && !result.ok) push(`Fold sequence: ${describeIssue(result.issue)}`)
+  // Grounded check: every fold the engine sees a Step do is one the Step declares.
+  if (result && result.ok) {
+    for (const folded of result.steps) {
+      const step = model.steps.find((s) => s.id === folded.step)
+      if (!step) continue
+      for (const kind of new Set(folded.kinds)) {
+        const operation = FOLD_KIND_OPERATIONS[kind]
+        if (!step.operations.includes(operation)) {
+          push(`Model "${model.id}", Step "${step.id}" does a ${kind} fold in its fold sequence but does not declare the Operation "${operation}".`)
+        }
+      }
+    }
+  }
   return issues
 }
 
