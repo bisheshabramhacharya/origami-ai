@@ -58,3 +58,44 @@ export const withSteps = (...steps: FoldSequenceInput['steps']): FoldSequenceInp
   paper: squareBase.paper,
   steps: [...squareBase.steps, ...steps],
 })
+
+const meet = (a: string, b: string) => ({ intersect: [{ crease: a }, { crease: b }] as [{ crease: string }, { crease: string }] })
+
+/** The petal fold on the front flap (crane Step 9), with the assignments it needs. */
+export const petalFront = (t1: 'V' | 'M' = 'V'): FoldSequenceInput['steps'][number] => ({
+  step: '9',
+  actions: [
+    {
+      kind: 'petal',
+      keep: 'A',
+      set: [
+        { crease: 't1', assignment: t1, from: meet('k1', 'b1'), to: meet('k2', 'b2') },
+        { crease: 'k1', assignment: 'M' },
+        { crease: 'k2', assignment: 'M' },
+        { crease: 'b1', assignment: 'F', from: 'BC', to: meet('k1', 'b1') },
+        { crease: 'b2', assignment: 'F', from: 'CD', to: meet('k2', 'b2') },
+      ],
+    },
+  ],
+})
+
+/** "Repeat behind" (crane Step 10): turn over, two kite folds, then the petal fold on the back flap. */
+export const petalBack: FoldSequenceInput['steps'][number] = {
+  step: '10',
+  actions: [
+    { kind: 'turn-over' },
+    { kind: 'valley', name: 'k3', line: { bringEdge: ['A', 'AB'], to: { crease: 'd1' } }, layers: 'top' },
+    { kind: 'valley', name: 'k4', line: { bringEdge: ['A', 'DA'], to: { crease: 'd1' } }, layers: 'top' },
+    {
+      kind: 'petal',
+      keep: 'C',
+      set: [
+        { crease: 't1', assignment: 'V', from: meet('k3', 'b2'), to: meet('k4', 'b1') },
+        { crease: 'k3', assignment: 'M' },
+        { crease: 'k4', assignment: 'M' },
+        { crease: 'b2', assignment: 'F', from: 'AB', to: meet('k3', 'b2') },
+        { crease: 'b1', assignment: 'F', from: 'DA', to: meet('k4', 'b1') },
+      ],
+    },
+  ],
+}
