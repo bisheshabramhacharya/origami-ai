@@ -9,6 +9,7 @@ export default function Step3D({ model, stepId, stepLabel }: { model: Model; ste
     const state = foldedStateForStep(model, stepId)
     return state ? displayMesh(state) : null
   }, [model, stepId])
-  if (!mesh) return null
+  // No folded state (the sequence failed before this Step): let StepVisual's boundary show the 2D Diagram.
+  if (!mesh) throw new Error(`No folded state for ${stepId}.`)
   return <FoldScene mesh={mesh} label={`3D view of ${stepLabel}. Drag to turn the paper.`} />
 }

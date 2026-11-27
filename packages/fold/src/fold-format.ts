@@ -1,6 +1,6 @@
-import type { Vec2, Vec3 } from './geometry'
+import { type Vec2, type Vec3, signedArea } from './geometry'
 import type { Paper } from './language'
-import type { Assignment, Edge, FoldRecord, FoldState } from './state'
+import { type Assignment, type Edge, type FoldRecord, type FoldState, isFlat, isFlipped } from './state'
 
 /**
  * FOLD 1.1 export (https://github.com/edemaine/fold). The top level is the folded form; frame 1
@@ -35,8 +35,11 @@ export interface FoldFile {
 const pt2 = (p: Vec2): [number, number] => [p.x, p.y]
 
 export function toFold(state: FoldState): FoldFile {
-  // FOLD faceOrders: [f, g, s], s = +1 when f is on the side g's normal points to.
-  const normalTowardViewer = state.faces.map((_, f) => state.faceSides[f] === 1)
+  // FOLD faceOrders: [f, g, s], s = +1 when f is on the side g's normal points to. Faces are
+  // counter-clockwise on the flat sheet, so a face's normal points to the viewer unless the face is
+  // flipped in the folded state. Layer order has a meaning only when the model is flat.
+  const flat = isFlat(state)
+  const normalTowardViewer = state.faces.map((_, f) => !isFlipped(state, f))
   return {
     file_spec: 1.1,
     file_creator: '@origami/fold',
@@ -48,7 +51,7 @@ export function toFold(state: FoldState): FoldFile {
     edges_assignment: state.edges.map((e) => e.assignment),
     edges_foldAngle: state.edges.map((e) => e.foldAngle),
     faces_vertices: state.faces.map((f) => [...f]),
-    faceOrders: state.above.map(([u, l]) => [u, l, normalTowardViewer[l] ? 1 : -1]),
+    faceOrders: flat ? state.above.map(([u, l]) => [u, l, normalTowardViewer[l] ? 1 : -1]) : [],
     file_frames: [
       {
         frame_classes: ['creasePattern'],
@@ -72,7 +75,10 @@ export function fromFold(file: FoldFile): FoldState {
   const cp = file.file_frames[0]
   if (!cp) throw new Error('This FOLD file has no crease pattern frame.')
   const creases = file['origami:edges_creases'] ?? []
-  const faceSides = (file['origami:faceSides'] ?? file.faces_vertices.map(() => 1)) as Array<1 | -1>
+  const folded = file.vertices_coords.map(vec3)
+  // Which way each face points comes from the geometry, so FOLD files from other tools decode right too.
+  const flipped = file.faces_vertices.map((f) => signedArea(f.map((vi) => ({ x: folded[vi]!.x, y: folded[vi]!.y }))) < 0)
+  const faceSides = flipped.map((x) => (x ? -1 : 1)) as Array<1 | -1>
   const edges: Edge[] = file.edges_vertices.map((ev, i) => ({
     vertices: [ev[0]!, ev[1]!],
     assignment: (file.edges_assignment[i] ?? 'F') as Assignment,
@@ -89,9 +95,9 @@ export function fromFold(file: FoldFile): FoldState {
     vertices: cp.vertices_coords.map(vec2),
     edges,
     faces: file.faces_vertices.map((f) => [...f]),
-    folded: file.vertices_coords.map(vec3),
+    folded,
     above: file.faceOrders.map(([f, g, s]) =>
-      (s === 1) === (faceSides[g!] === 1) ? ([f!, g!] as [number, number]) : ([g!, f!] as [number, number]),
+      (s === 1) === !flipped[g!] ? ([f!, g!] as [number, number]) : ([g!, f!] as [number, number]),
     ),
     points: Object.fromEntries(Object.entries(file['origami:points'] ?? {}).map(([k, p]) => [k, vec2(p)])),
     folds,
