@@ -46,13 +46,19 @@ describe('the paper dart on a rectangle', () => {
     expect(at(state, 'AB').y).toBeCloseTo(H, 6)
   })
 
-  it('Step 4: a flat, thin triangle with the centre crease on one long edge, W/2 wide and H long', () => {
+  it('Step 4: flat and narrow (a point at the nose, a short straight tail), the centre crease along one long edge, W/2 wide and H long', () => {
     const state = upTo(4)
     expect(isFlat(state)).toBe(true)
     expect(checkState(state)).toEqual([])
     const box = boundingBox(state)
     expect(box.widthMm).toBeCloseTo(W / 2, 6)
     expect(box.heightMm).toBeCloseTo(H, 6)
+    // The centre crease runs from the nose (AB) to the middle of the tail (CD), along one long edge.
+    const xs = state.folded.map((p) => p.x)
+    const edgeX = [Math.min(...xs), Math.max(...xs)]
+    expect(at(state, 'AB').x).toBeCloseTo(at(state, 'CD').x, 6)
+    expect(edgeX.some((x) => Math.abs(x - at(state, 'AB').x) < 1e-6)).toBe(true)
+    expect(Math.abs(at(state, 'AB').y - at(state, 'CD').y)).toBeCloseTo(H, 6)
     // The back half lies under the front half, corner on corner.
     expect(at(state, 'D').x).toBeCloseTo(at(state, 'C').x, 6)
     expect(at(state, 'D').y).toBeCloseTo(at(state, 'C').y, 6)
