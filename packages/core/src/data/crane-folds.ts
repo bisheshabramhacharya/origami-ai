@@ -81,5 +81,42 @@ export const CRANE_FOLD_SEQUENCE: FoldSequenceInput = {
         { kind: 'unfold', last: 3 },
       ],
     },
+    {
+      step: 'crane-9',
+      actions: [
+        {
+          kind: 'petal',
+          keep: 'A',
+          note: 'Lift the bottom point of the front flap up along t1; the sides fold in along the kite creases.',
+          set: [
+            { crease: 't1', assignment: 'V', from: { intersect: [{ crease: 'k1' }, { crease: 'b1' }] }, to: { intersect: [{ crease: 'k2' }, { crease: 'b2' }] } },
+            { crease: 'k1', assignment: 'M' },
+            { crease: 'k2', assignment: 'M' },
+            { crease: 'b1', assignment: 'F', from: 'BC', to: { intersect: [{ crease: 'k1' }, { crease: 'b1' }] } },
+            { crease: 'b2', assignment: 'F', from: 'CD', to: { intersect: [{ crease: 'k2' }, { crease: 'b2' }] } },
+          ],
+        },
+      ],
+    },
+    {
+      step: 'crane-10',
+      actions: [
+        { kind: 'turn-over' },
+        { kind: 'valley', name: 'k3', line: { bringEdge: ['A', 'AB'], to: { crease: 'd1' } }, layers: 'top' },
+        { kind: 'valley', name: 'k4', line: { bringEdge: ['A', 'DA'], to: { crease: 'd1' } }, layers: 'top' },
+        {
+          kind: 'petal',
+          keep: 'C',
+          note: 'The top fold t1 already went through the back layers in Step 8, so its crease is there.',
+          set: [
+            { crease: 't1', assignment: 'V', from: { intersect: [{ crease: 'k3' }, { crease: 'b2' }] }, to: { intersect: [{ crease: 'k4' }, { crease: 'b1' }] } },
+            { crease: 'k3', assignment: 'M' },
+            { crease: 'k4', assignment: 'M' },
+            { crease: 'b2', assignment: 'F', from: 'AB', to: { intersect: [{ crease: 'k3' }, { crease: 'b2' }] } },
+            { crease: 'b1', assignment: 'F', from: 'DA', to: { intersect: [{ crease: 'k4' }, { crease: 'b1' }] } },
+          ],
+        },
+      ],
+    },
   ],
 }

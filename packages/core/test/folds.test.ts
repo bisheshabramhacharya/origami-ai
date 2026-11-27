@@ -55,6 +55,20 @@ describe('fold sequences on Models', () => {
     expect(flat.every((e) => e.assignment === 'F')).toBe(true)
   })
 
+  it('folds the bird base in Steps 9 and 10: a 150 mm long diamond, the same front and back', () => {
+    const step9 = foldedStateForStep(crane, 'crane-9')!
+    const step10 = foldedStateForStep(crane, 'crane-10')!
+    expect(checkState(step9)).toEqual([])
+    expect(checkState(step10)).toEqual([])
+    const height = (s: typeof step9) => {
+      const ys = outline(s).map((p) => p.y)
+      return Math.max(...ys) - Math.min(...ys)
+    }
+    expect(height(step9)).toBeCloseTo(150, 6)
+    expect(height(step10)).toBeCloseTo(150, 6)
+    for (const id of ['crane-9', 'crane-10']) expect(crane.steps.find((s) => s.id === id)!.operations).toContain('petal-fold')
+  })
+
   it('fails the audit for a Model whose fold sequence has an impossible fold', () => {
     const broken: Model = {
       ...crane,
