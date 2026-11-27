@@ -105,6 +105,9 @@ describe('fold sequences on Models', () => {
     expect(front.y).toBeCloseTo(back.y, 6)
     expect(front.x).toBeCloseTo(back.x, 6)
     expect(front.z).toBeCloseTo(-back.z, 6)
+    // The front wing lay on top, so it lifts toward the viewer; the back wing goes away from the viewer.
+    expect(front.z).toBeGreaterThan(0)
+    expect(back.z).toBeLessThan(0)
     for (const name of ['w1', 'w2']) {
       const hinges = state.edges.filter((e) => e.creases.includes(name))
       expect(hinges.length, name).toBeGreaterThan(0)
@@ -151,6 +154,10 @@ describe('fold sequences on Models', () => {
     expect(finishedSizeLabel(crane)).toBe('About 9 cm wide from a 15 cm sheet')
     expect(finishedSizeLabel(crane, 75)).toBe('About 4.5 cm wide from a 7.5 cm sheet')
     expect(finishedSizeLabel(getModel('flapping-bird')!)).toBeNull()
+    // The sheet is shown to 0.1 cm: a US Letter short side is 21.59 cm.
+    expect(finishedSizeLabel(crane, 215.9)).toBe('About 12.5 cm wide from a 21.6 cm sheet')
+    expect(() => finishedSizeLabel(crane, 0)).toThrow(RangeError)
+    expect(() => finishedSizeLabel(crane, -10)).toThrow(RangeError)
   })
 
   it('fails the audit for a Model whose fold sequence has an impossible fold', () => {
