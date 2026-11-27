@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { type FoldSequenceInput, boundingBox, checkState, foldedPositionOf, isFlat, outline, runFoldSequence } from '@origami/fold'
 import { CRANE_FOLD_SEQUENCE, CRANE_WING_DEGREES } from '../src/data/crane-folds'
 import {
-  SEED_LIBRARY,
+  SEED_MODELS,
   type Model,
   auditFoldSequence,
   auditLibrary,
@@ -24,7 +24,7 @@ const area = (pts: Array<{ x: number; y: number }>) =>
 describe('fold sequences on Models', () => {
   it('the crane has a fold sequence and passes the Library audit with it', () => {
     expect(hasFoldSequence(crane)).toBe(true)
-    expect(auditLibrary(SEED_LIBRARY).issues.filter((issue) => issue.severity === 'error')).toEqual([])
+    expect(auditLibrary(SEED_MODELS).issues.filter((issue) => issue.severity === 'error')).toEqual([])
     expect(foldModel(crane)?.ok).toBe(true)
   })
 
@@ -192,7 +192,7 @@ describe('fold sequences on Models', () => {
   })
 
   it('invariant: every Model with a fold sequence gives one checked state per fold Step and no failed check', () => {
-    for (const model of SEED_LIBRARY.filter(hasFoldSequence)) {
+    for (const model of SEED_MODELS.filter(hasFoldSequence)) {
       const result = foldModel(model)!
       expect(result.ok, model.id).toBe(true)
       if (!result.ok) continue
@@ -202,8 +202,10 @@ describe('fold sequences on Models', () => {
   })
 
   it('leaves Models without a fold sequence as they were', () => {
-    const others = SEED_LIBRARY.filter((model) => !hasFoldSequence(model))
-    expect(others.length).toBe(SEED_LIBRARY.length - 1)
+    const others = SEED_MODELS.filter((model) => !hasFoldSequence(model))
+    // The crane and the paper dart have fold sequences.
+    expect(SEED_MODELS.filter(hasFoldSequence).map((model) => model.id).sort()).toEqual(['origami-crane', 'paper-plane-dart'])
+    expect(others.length).toBe(SEED_MODELS.length - 2)
     for (const model of others) expect(foldedStates(model).size).toBe(0)
   })
 })

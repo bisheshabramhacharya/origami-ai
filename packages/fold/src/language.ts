@@ -53,7 +53,13 @@ export type FoldLine = z.infer<typeof FoldLineSchema>
 /** Which layers a simple fold moves. */
 export const LayersSchema = z.union([
   z.literal('all'),
+  /** The top layer of those that carry the point that moves, and the paper joined to it on that side. */
   z.literal('top'),
+  /**
+   * As `top`, and every layer in its way on the side that moves: the layers over it for a valley fold,
+   * the layers under it for a mountain fold (for example a wing with loose flaps on it).
+   */
+  z.literal('above'),
   z.object({ flap: PointRefSchema }).strict(),
 ])
 export type Layers = z.infer<typeof LayersSchema>

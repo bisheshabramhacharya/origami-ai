@@ -14,6 +14,9 @@ import {
   diagram,
   renderDiagram,
   sheet,
+  auditFoldSequence,
+  foldedStateForStep,
+  stepPlayback,
 } from '../src'
 
 const dart = () => getModel('paper-plane-dart', SEED_MODELS)!
@@ -71,5 +74,24 @@ describe('the dart diagrams', () => {
     expect(m).not.toBeNull()
     const [x1, y1, x2, y2] = m!.slice(1).map(Number) as [number, number, number, number]
     expect((x2 - x1) / (y2 - y1)).toBeCloseTo(215.9 / 279.4, 2)
+  })
+})
+
+describe("the dart's fold sequence", () => {
+  it('passes the engine and the grounded check for Steps 1 to 5', () => {
+    const model = dart()
+    expect(auditFoldSequence(model)).toEqual([])
+    for (const id of ['dart-1', 'dart-2', 'dart-3', 'dart-4', 'dart-5']) {
+      expect(foldedStateForStep(model, id), id).not.toBeNull()
+      const playback = stepPlayback(model, id)
+      expect(playback?.motions.length, id).toBeGreaterThan(0)
+    }
+  })
+
+  it('fails the grounded check when Step 4 does not declare its mountain fold', () => {
+    const model = dart()
+    const broken: Model = { ...model, steps: model.steps.map((s) => (s.id === 'dart-4' ? { ...s, operations: ['press-flat'] } : s)) }
+    const messages = auditFoldSequence(broken).map((issue) => issue.message)
+    expect(messages).toEqual([expect.stringContaining('"mountain-fold"')])
   })
 })

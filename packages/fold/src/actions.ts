@@ -242,6 +242,36 @@ function topmost(state: FoldState, candidates: number[]): number | null {
   return candidates[0]!
 }
 
+/**
+ * A layer that lies in the way of the paper that moves, on the side that moves, has to go with it: you
+ * cannot fold a layer over the line and leave a layer in its path in place. For a valley fold the
+ * paper turns up, so the layers in the way are the ones over it; for a mountain fold it turns down,
+ * so they are the ones under it. Add every such layer, and the paper joined to it on that side, until
+ * none is left. Used for `above` folds, for example the wing of a paper plane, whose loose flaps lie
+ * over the wing.
+ */
+function withLayersInTheWay(state: FoldState, line: Line2, side: number, turn: 1 | -1, component: Set<number>): Set<number> {
+  if (!isFlat(state)) return component
+  const order = orderLookup(state)
+  const onSide = (f: number) => clipHalfPlane(foldedPolygon(state, f), line, side > 0)
+  const touching = state.faces.map((_, f) => f).filter((f) => faceTouches(state, line, f, side))
+  const out = new Set(component)
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const g of touching) {
+      if (out.has(g)) continue
+      const pg = onSide(g)
+      if (pg.length < 3) continue
+      const covers = [...out].some((c) => order(g, c) === turn && overlapArea(pg, onSide(c)) > AREA_TOLERANCE_MM2)
+      if (!covers) continue
+      for (const h of movingComponent(state, line, side, [g])) out.add(h)
+      grew = true
+    }
+  }
+  return out
+}
+
 /** Faces that touch the moving side and are joined to the seed faces across that side. */
 function movingComponent(state: FoldState, line: Line2, side: number, seeds: number[]): Set<number> {
   const touching = new Set(state.faces.map((_, f) => f).filter((f) => faceTouches(state, line, f, side)))
@@ -288,6 +318,8 @@ function planFold(
   resolved: FoldLineResult,
   layers: SimpleFold['layers'],
   what: string,
+  /** +1 when the paper turns up (a valley fold), -1 when it turns down (a mountain fold). */
+  turn: 1 | -1 = 1,
 ): FoldPlan {
   const { line } = resolved
   let side: number
@@ -305,7 +337,7 @@ function planFold(
   let component: Set<number>
   if (layers === 'all') {
     component = new Set(all.filter((f) => faceTouches(state, line, f, side)))
-  } else if (layers === 'top') {
+  } else if (layers === 'top' || layers === 'above') {
     const seed = resolved.seed
     let candidates: number[]
     if (seed) {
@@ -320,6 +352,7 @@ function planFold(
     const top = topmost(state, candidates)
     if (top === null) fail('references', `No layer is under the point that moves.`, what)
     component = movingComponent(state, line, side, [top])
+    if (layers === 'above') component = withLayersInTheWay(state, line, side, turn, component)
   } else {
     const flap = resolvePoint(state, layers.flap)
     const seeds = all.filter((f) => faceTouches(state, line, f, side) && pointInConvex(flatPolygon(state, f), flap.flat))
@@ -447,7 +480,7 @@ function simpleFold(state: FoldState, action: SimpleFold): FoldState {
   if (!isFlat(state)) fail('axiom', 'A valley or mountain fold needs the model to lie flat first.', action.name)
   const resolved = resolveFoldLine(state, action.line, action.moving)
   const name = action.name ?? autoName(state)
-  const plan = planFold(state, resolved, action.layers, name)
+  const plan = planFold(state, resolved, action.layers, name, action.kind === 'mountain' ? -1 : 1)
   const up = action.kind === 'valley'
   assertNoTear(state, plan.line, plan.moving, name)
   assertNotBlocked(state, plan.moving, up, name)
