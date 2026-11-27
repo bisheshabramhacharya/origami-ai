@@ -7,7 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "author": "tsx scripts/author-fold-sequence.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
